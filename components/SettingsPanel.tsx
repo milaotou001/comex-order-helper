@@ -1,16 +1,51 @@
 "use client";
 
-import type { OrderSettings } from "@/lib/types";
+import type { CopyPriceType, OrderSettings } from "@/lib/types";
+import { getCopyTypeLabel } from "@/lib/format";
 
 type SettingsPanelProps = {
   settings: OrderSettings;
   onChange: (settings: OrderSettings) => void;
 };
 
+const COPY_OPTIONS: { value: CopyPriceType; short: string }[] = [
+  { value: "standard", short: "标准价" },
+  { value: "easy", short: "容易成交价" },
+  { value: "bargain", short: "捡漏价" }
+];
+
 export function SettingsPanel({ settings, onChange }: SettingsPanelProps) {
   return (
     <section className="border-t border-line py-6">
       <h2 className="mb-4 text-lg font-semibold text-white">设置</h2>
+
+      <div className="mb-5 rounded-md border border-gold/60 bg-gold/8 p-4">
+        <p className="mb-3 text-sm font-semibold text-gold">当前复制价格类型</p>
+        <div className="flex flex-wrap gap-2">
+          {COPY_OPTIONS.map((option) => {
+            const active = settings.copyPriceType === option.value;
+            return (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => onChange({ ...settings, copyPriceType: option.value })}
+                className={`rounded-md border px-4 py-2 text-sm font-semibold transition ${
+                  active
+                    ? "border-gold bg-gold text-ink"
+                    : "border-line bg-panel text-silver hover:border-gold/50 hover:text-white"
+                }`}
+              >
+                {active ? `✓ ${option.short}` : option.short}
+              </button>
+            );
+          })}
+        </div>
+        <p className="mt-3 text-xs leading-5 text-silver/80">
+          点击"复制 IAU / SLV 挂单价"时将复制：<span className="font-semibold text-white">{getCopyTypeLabel(settings.copyPriceType)}</span>。
+          杠杆 ETF 参考价不区分三档，始终复制单一定价。
+        </p>
+      </div>
+
       <div className="grid gap-3 sm:grid-cols-2">
         <NumberSetting
           label="容易成交上浮%"

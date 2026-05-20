@@ -1,6 +1,6 @@
 "use client";
 
-import { buildCopyLine, buildLeveragedCopy, buildPlainCopy, formatPercent, formatPrice } from "@/lib/format";
+import { buildCopyLine, formatPercent, formatPrice, getSelectedPlainPrice } from "@/lib/format";
 import type { ConvertedOrder, OrderSettings } from "@/lib/types";
 import { CopyButton } from "./CopyButton";
 
@@ -12,8 +12,10 @@ type ResultCardProps = {
 
 export function ResultCard({ order, settings, accent }: ResultCardProps) {
   const fullLine = buildCopyLine(order, settings.decimals);
-  const plainLine = buildPlainCopy(order, settings.decimals);
-  const leveragedLine = buildLeveragedCopy(order, settings.decimals);
+
+  const plainPrice = getSelectedPlainPrice(order, settings.copyPriceType);
+  const plainPriceFormatted = formatPrice(plainPrice, settings.decimals);
+  const leveragedPriceFormatted = formatPrice(order.leveragedPrice, settings.decimals);
 
   const metalLabel = order.metal === "gold" ? "COMEX黄金" : "COMEX白银";
 
@@ -45,12 +47,19 @@ export function ResultCard({ order, settings, accent }: ResultCardProps) {
         ) : null}
       </div>
 
-      <div className="mt-4 flex flex-wrap gap-2 border-t border-line pt-4">
-        <CopyButton value={plainLine} label={`复制 ${order.plainSymbol}`} />
+      <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-line pt-4">
+        <CopyButton
+          value={plainPriceFormatted}
+          label={`复制 ${order.plainSymbol}：${plainPriceFormatted}`}
+          primary
+        />
         {settings.showLeveraged ? (
-          <CopyButton value={leveragedLine} label={`复制 ${order.leveragedSymbol}`} />
+          <CopyButton
+            value={leveragedPriceFormatted}
+            label={`复制 ${order.leveragedSymbol}：${leveragedPriceFormatted}`}
+          />
         ) : null}
-        <CopyButton value={fullLine} label="复制整行" />
+        <CopyButton value={fullLine} label="复制整行" subtle />
       </div>
 
       {order.riskLevel === "warning" ? (
