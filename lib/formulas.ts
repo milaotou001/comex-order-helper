@@ -1,4 +1,4 @@
-import type { ConvertedOrder, Metal, PointKind, QuoteMap, RiskLevel } from "./types";
+import type { ConvertedOrder, Metal, QuoteMap, RiskLevel } from "./types";
 
 const METAL_CONFIG = {
   gold: {
@@ -12,14 +12,6 @@ const METAL_CONFIG = {
     leveraged: "AGQ"
   }
 } as const;
-
-export function calculateTakeProfit(entry: number, stop: number): number {
-  return entry + 2 * (entry - stop);
-}
-
-export function isValidLongSetup(entry: number | null, stop: number | null): boolean {
-  return entry !== null && stop !== null && Number.isFinite(entry) && Number.isFinite(stop) && stop < entry;
-}
 
 export function calculatePlainEtfPrice(
   currentEtfPrice: number,
@@ -76,7 +68,6 @@ export function getRiskLevel(distancePercent: number): RiskLevel {
 
 export function buildConvertedOrder(
   metal: Metal,
-  pointKind: PointKind,
   point: number,
   quotes: QuoteMap,
   easyPercent: number,
@@ -97,7 +88,6 @@ export function buildConvertedOrder(
 
   return {
     metal,
-    pointKind,
     point,
     plainSymbol: config.plain,
     leveragedSymbol: config.leveraged,

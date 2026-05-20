@@ -4,7 +4,6 @@ import {
   calculateEasyPrice,
   calculateLeveragedEtfPrice,
   calculatePlainEtfPrice,
-  calculateTakeProfit,
   getRiskLevel
 } from "@/lib/formulas";
 
@@ -23,10 +22,6 @@ describe("formulas", () => {
 
   it("calculates bargain price", () => {
     expect(calculateBargainPrice(85.65, 0.3)).toBeCloseTo(85.39305, 5);
-  });
-
-  it("generates take profit with fixed 1:2 risk reward", () => {
-    expect(calculateTakeProfit(4550, 4520)).toBe(4610);
   });
 
   it("marks leveraged reference risk by distance", () => {

@@ -26,16 +26,25 @@ type TwelveDataQuote = {
   datetime?: string;
 };
 
+const MOCK_QUOTES: QuoteMap = {
+  GC: { symbol: "GC", name: "COMEX黄金", price: 4600, updatedAt: "mock" },
+  SI: { symbol: "SI", name: "COMEX白银", price: 72, updatedAt: "mock" },
+  IAU: { symbol: "IAU", name: "IAU", price: 86.55, updatedAt: "mock" },
+  UGL: { symbol: "UGL", name: "UGL", price: 58.10, updatedAt: "mock" },
+  SLV: { symbol: "SLV", name: "SLV", price: 65.80, updatedAt: "mock" },
+  AGQ: { symbol: "AGQ", name: "AGQ", price: 145.26, updatedAt: "mock" }
+};
+
 export async function fetchMarketQuotes(): Promise<QuotePayload> {
   const apiKey = process.env.MARKET_DATA_API_KEY;
   const provider = process.env.MARKET_DATA_PROVIDER ?? "twelvedata";
 
   if (provider !== "twelvedata") {
-    return errorPayload("当前仅支持 Twelve Data 行情源");
+    return mockPayload("当前仅支持 Twelve Data 行情源，使用 mock 行情");
   }
 
   if (!apiKey) {
-    return errorPayload("未配置 MARKET_DATA_API_KEY，行情暂不可用");
+    return mockPayload("未配置 MARKET_DATA_API_KEY，使用 mock 行情");
   }
 
   const symbols = getSymbols();
@@ -50,12 +59,16 @@ export async function fetchMarketQuotes(): Promise<QuotePayload> {
     });
 
     if (!response.ok) {
-      return errorPayload(`行情请求失败：${response.status}`);
+      return mockPayload(`行情请求失败：${response.status}，回退 mock 行情`);
     }
 
     const raw = await response.json();
     const now = new Date().toISOString();
     const quotes = normalizeQuotes(raw, symbols, now);
+
+    if (Object.keys(quotes).length === 0) {
+      return mockPayload("行情数据为空，回退 mock 行情");
+    }
 
     return {
       quotes,
@@ -63,8 +76,17 @@ export async function fetchMarketQuotes(): Promise<QuotePayload> {
       source: "twelvedata"
     };
   } catch {
-    return errorPayload("行情请求异常，请稍后手动刷新");
+    return mockPayload("行情请求异常，回退 mock 行情");
   }
+}
+
+function mockPayload(reason: string): QuotePayload {
+  return {
+    quotes: MOCK_QUOTES,
+    updatedAt: new Date().toISOString(),
+    source: "mock",
+    error: reason
+  };
 }
 
 function getSymbols(): Record<QuoteSymbol, string> {
@@ -113,13 +135,4 @@ function normalizeQuotes(
   }
 
   return quotes;
-}
-
-function errorPayload(error: string): QuotePayload {
-  return {
-    quotes: {},
-    updatedAt: null,
-    source: "twelvedata",
-    error
-  };
 }

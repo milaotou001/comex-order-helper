@@ -9,15 +9,23 @@ type QuotePanelProps = {
   error?: string;
   loading: boolean;
   onRefresh: () => void;
+  isMock: boolean;
 };
 
 const ORDER = ["GC", "SI", "IAU", "UGL", "SLV", "AGQ"] as const;
 
-export function QuotePanel({ quotes, updatedAt, error, loading, onRefresh }: QuotePanelProps) {
+export function QuotePanel({ quotes, updatedAt, error, loading, onRefresh, isMock }: QuotePanelProps) {
   return (
     <section className="py-5">
       <div className="mb-3 flex items-center justify-between gap-3">
-        <h2 className="text-lg font-semibold text-white">当前行情</h2>
+        <div className="flex items-center gap-3">
+          <h2 className="text-lg font-semibold text-white">当前行情</h2>
+          {isMock ? (
+            <span className="rounded-md border border-amber/50 bg-amber/10 px-2 py-0.5 text-xs text-amber">
+              mock 行情（仅用于 MVP-0 验收）
+            </span>
+          ) : null}
+        </div>
         <button
           type="button"
           onClick={onRefresh}
@@ -51,7 +59,7 @@ export function QuotePanel({ quotes, updatedAt, error, loading, onRefresh }: Quo
 
       <div className="mt-3 flex flex-col gap-2 text-xs text-silver/75 sm:flex-row sm:items-center sm:justify-between">
         <span>更新时间：{updatedAt ? new Date(updatedAt).toLocaleString("zh-CN") : "暂无"}</span>
-        {error ? <span className="text-amber">行情不可用：{error}</span> : null}
+        {error ? <span className="text-amber">{error}</span> : null}
       </div>
     </section>
   );

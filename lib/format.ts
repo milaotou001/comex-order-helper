@@ -28,3 +28,15 @@ export function buildCopyLine(order: ConvertedOrder, decimals = 2): string {
     `距当前 ${formatPercent(order.distancePercent)}`
   ].join("｜");
 }
+
+export function buildPlainCopy(order: ConvertedOrder, decimals = 2): string {
+  return [
+    `${order.plainSymbol}标准 ${formatPrice(order.standardPrice, decimals)}`,
+    `${order.plainSymbol}容易成交 ${formatPrice(order.easyPrice, decimals)}`,
+    `${order.plainSymbol}捡漏 ${formatPrice(order.bargainPrice, decimals)}`
+  ].join("｜");
+}
+
+export function buildLeveragedCopy(order: ConvertedOrder, decimals = 2): string {
+  return `${order.leveragedSymbol}参考 ${formatPrice(order.leveragedPrice, decimals)}`;
+}

@@ -4,73 +4,34 @@ import type { Metal } from "@/lib/types";
 
 type PointInputProps = {
   metal: Metal;
-  entry: string;
-  stop: string;
-  takeProfit: number | null;
-  isValid: boolean;
-  onEntryChange: (value: string) => void;
-  onStopChange: (value: string) => void;
+  points: string;
+  onPointsChange: (value: string) => void;
 };
 
-export function PointInput({
-  metal,
-  entry,
-  stop,
-  takeProfit,
-  isValid,
-  onEntryChange,
-  onStopChange
-}: PointInputProps) {
-  const label = metal === "gold" ? "COMEX 黄金" : "COMEX 白银";
+export function PointInput({ metal, points, onPointsChange }: PointInputProps) {
+  const label = metal === "gold" ? "COMEX 黄金点位" : "COMEX 白银点位";
   const accent = metal === "gold" ? "text-gold" : "text-silver";
+  const placeholder =
+    metal === "gold"
+      ? "每行一个点位，例如：\n4500\n4450\n4400"
+      : "每行一个点位，例如：\n73\n72\n70";
 
   return (
     <section className="border-t border-line py-6">
-      <div className="mb-4 flex items-end justify-between gap-3">
-        <div>
-          <p className={`text-xs font-semibold uppercase tracking-[0.18em] ${accent}`}>只做多</p>
-          <h2 className="mt-1 text-xl font-semibold text-white">{label}</h2>
-        </div>
-        <div className="rounded-md border border-line px-3 py-2 text-right text-xs text-silver">
-          <span className="block text-[11px] text-silver/70">盈亏比</span>
-          <span className="font-mono text-white">1:2</span>
-        </div>
+      <div className="mb-4">
+        <p className={`text-xs font-semibold uppercase tracking-[0.18em] ${accent}`}>COMEX</p>
+        <h2 className="mt-1 text-xl font-semibold text-white">{label}</h2>
+        <p className="mt-1 text-sm text-silver">输入 COMEX {metal === "gold" ? "黄金" : "白银"} 点位，自动换算 ETF 挂单参考价。</p>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-3">
-        <label className="block">
-          <span className="mb-2 block text-sm text-silver">买点</span>
-          <input
-            inputMode="decimal"
-            value={entry}
-            onChange={(event) => onEntryChange(event.target.value)}
-            placeholder={metal === "gold" ? "4550" : "70"}
-            className="h-12 w-full rounded-md border border-line bg-panel px-3 font-mono text-lg text-white placeholder:text-silver/35"
-          />
-        </label>
-        <label className="block">
-          <span className="mb-2 block text-sm text-silver">止损</span>
-          <input
-            inputMode="decimal"
-            value={stop}
-            onChange={(event) => onStopChange(event.target.value)}
-            placeholder={metal === "gold" ? "4520" : "68"}
-            className="h-12 w-full rounded-md border border-line bg-panel px-3 font-mono text-lg text-white placeholder:text-silver/35"
-          />
-        </label>
-        <div>
-          <span className="mb-2 block text-sm text-silver">自动止盈</span>
-          <div className="flex h-12 items-center rounded-md border border-line bg-ink px-3 font-mono text-lg text-white">
-            {takeProfit === null ? "等待输入" : takeProfit.toFixed(2)}
-          </div>
-        </div>
-      </div>
-
-      {entry && stop && !isValid ? (
-        <p className="mt-3 rounded-md border border-danger/50 bg-danger/10 px-3 py-2 text-sm text-red-200">
-          只支持做多，止损必须低于买点。
-        </p>
-      ) : null}
+      <textarea
+        inputMode="decimal"
+        value={points}
+        onChange={(event) => onPointsChange(event.target.value)}
+        placeholder={placeholder}
+        rows={5}
+        className="w-full rounded-md border border-line bg-panel px-4 py-3 font-mono text-lg text-white placeholder:text-silver/35 focus:border-gold focus:outline-none"
+      />
     </section>
   );
 }

@@ -15,11 +15,9 @@ export type QuoteMap = Partial<Record<QuoteSymbol, Quote>>;
 export type QuotePayload = {
   quotes: QuoteMap;
   updatedAt: string | null;
-  source: "twelvedata";
+  source: "twelvedata" | "mock";
   error?: string;
 };
-
-export type PointKind = "entry" | "stop" | "target";
 
 export type OrderSettings = {
   easyPercent: number;
@@ -33,7 +31,6 @@ export type RiskLevel = "normal" | "warning" | "danger";
 
 export type ConvertedOrder = {
   metal: Metal;
-  pointKind: PointKind;
   point: number;
   plainSymbol: "IAU" | "SLV";
   leveragedSymbol: "UGL" | "AGQ";
