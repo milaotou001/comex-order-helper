@@ -1,0 +1,39 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+  background: #111318;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  min-height: 100%;
+  background: #111318;
+}
+
+body {
+  min-height: 100%;
+  margin: 0;
+  background:
+    linear-gradient(120deg, rgba(214, 173, 85, 0.1), transparent 28rem),
+    linear-gradient(210deg, rgba(212, 216, 221, 0.08), transparent 22rem),
+    #111318;
+  color: #f4f0e8;
+  font-family: Aptos, "Segoe UI", sans-serif;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button:focus-visible,
+input:focus-visible {
+  outline: 2px solid #d6ad55;
+  outline-offset: 2px;
+}

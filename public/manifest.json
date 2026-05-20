@@ -1,0 +1,17 @@
+{
+  "name": "COMEX金银挂单换算器",
+  "short_name": "COMEX换算",
+  "description": "COMEX 黄金、白银点位换算 IAU、UGL、SLV、AGQ 挂单参考价。",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#111318",
+  "theme_color": "#111318",
+  "icons": [
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
