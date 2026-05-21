@@ -27,7 +27,7 @@ export default function Home() {
       const payload = await response.json() as QuotePayload;
       setQuotes(payload.quotes);
       setUpdatedAt(payload.updatedAt);
-      setQuoteError(payload.error);
+      setQuoteError(payload.warning ?? payload.error);
       setSource(payload.source);
     } catch {
       setQuoteError("无法连接行情接口");

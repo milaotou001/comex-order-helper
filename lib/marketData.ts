@@ -1,13 +1,11 @@
 import type { Quote, QuoteMap, QuotePayload, QuoteSymbol } from "./types";
 
-const DEFAULT_SYMBOLS: Record<QuoteSymbol, QuoteSymbol> = {
-  GC: "GC",
-  SI: "SI",
+const DEFAULT_ETF_SYMBOLS = {
   IAU: "IAU",
   UGL: "UGL",
   SLV: "SLV",
   AGQ: "AGQ"
-};
+} as const;
 
 const NAMES: Record<QuoteSymbol, string> = {
   GC: "COMEX黄金",
@@ -16,6 +14,15 @@ const NAMES: Record<QuoteSymbol, string> = {
   UGL: "UGL",
   SLV: "SLV",
   AGQ: "AGQ"
+};
+
+const SYMBOL_ENV_NAMES: Record<QuoteSymbol, string> = {
+  GC: "COMEX_GOLD_SYMBOL",
+  SI: "COMEX_SILVER_SYMBOL",
+  IAU: "IAU_SYMBOL",
+  UGL: "UGL_SYMBOL",
+  SLV: "SLV_SYMBOL",
+  AGQ: "AGQ_SYMBOL"
 };
 
 type TwelveDataQuote = {
@@ -48,7 +55,14 @@ export async function fetchMarketQuotes(): Promise<QuotePayload> {
   }
 
   const symbols = getSymbols();
-  const apiSymbols = Object.values(symbols).join(",");
+  const missingSymbols = getMissingSymbolEnvNames(symbols);
+  if (missingSymbols.length > 0) {
+    return mockPayload(`未配置 Twelve Data symbol：${missingSymbols.join(", ")}，使用 mock 行情`);
+  }
+
+  const apiSymbols = Object.values(symbols)
+    .filter((symbol): symbol is string => Boolean(symbol))
+    .join(",");
   const endpoint = new URL("https://api.twelvedata.com/quote");
   endpoint.searchParams.set("symbol", apiSymbols);
   endpoint.searchParams.set("apikey", apiKey);
@@ -66,14 +80,16 @@ export async function fetchMarketQuotes(): Promise<QuotePayload> {
     const now = new Date().toISOString();
     const quotes = normalizeQuotes(raw, symbols, now);
 
-    if (Object.keys(quotes).length === 0) {
-      return mockPayload("行情数据为空，回退 mock 行情");
+    const missingQuotes = getMissingQuotes(quotes);
+    if (missingQuotes.length > 0) {
+      return mockPayload(`真实行情缺少有效价格：${missingQuotes.join(", ")}，回退 mock 行情`);
     }
 
     return {
       quotes,
       updatedAt: now,
-      source: "twelvedata"
+      source: "twelvedata",
+      isMock: false
     };
   } catch {
     return mockPayload("行情请求异常，回退 mock 行情");
@@ -85,30 +101,36 @@ function mockPayload(reason: string): QuotePayload {
     quotes: MOCK_QUOTES,
     updatedAt: new Date().toISOString(),
     source: "mock",
+    isMock: true,
+    warning: reason,
     error: reason
   };
 }
 
-function getSymbols(): Record<QuoteSymbol, string> {
+function getSymbols(): Record<QuoteSymbol, string | undefined> {
   return {
-    GC: process.env.COMEX_GOLD_SYMBOL ?? DEFAULT_SYMBOLS.GC,
-    SI: process.env.COMEX_SILVER_SYMBOL ?? DEFAULT_SYMBOLS.SI,
-    IAU: process.env.IAU_SYMBOL ?? DEFAULT_SYMBOLS.IAU,
-    UGL: process.env.UGL_SYMBOL ?? DEFAULT_SYMBOLS.UGL,
-    SLV: process.env.SLV_SYMBOL ?? DEFAULT_SYMBOLS.SLV,
-    AGQ: process.env.AGQ_SYMBOL ?? DEFAULT_SYMBOLS.AGQ
+    GC: process.env.COMEX_GOLD_SYMBOL,
+    SI: process.env.COMEX_SILVER_SYMBOL,
+    IAU: process.env.IAU_SYMBOL ?? DEFAULT_ETF_SYMBOLS.IAU,
+    UGL: process.env.UGL_SYMBOL ?? DEFAULT_ETF_SYMBOLS.UGL,
+    SLV: process.env.SLV_SYMBOL ?? DEFAULT_ETF_SYMBOLS.SLV,
+    AGQ: process.env.AGQ_SYMBOL ?? DEFAULT_ETF_SYMBOLS.AGQ
   };
 }
 
 function normalizeQuotes(
   raw: unknown,
-  symbols: Record<QuoteSymbol, string>,
+  symbols: Record<QuoteSymbol, string | undefined>,
   now: string
 ): QuoteMap {
-  const rows = Array.isArray(raw) ? raw : Object.values(raw as Record<string, TwelveDataQuote>);
+  const rows = extractRows(raw);
   const quotes: QuoteMap = {};
 
-  for (const [localSymbol, apiSymbol] of Object.entries(symbols) as Array<[QuoteSymbol, string]>) {
+  for (const [localSymbol, apiSymbol] of Object.entries(symbols) as Array<[QuoteSymbol, string | undefined]>) {
+    if (!apiSymbol) {
+      continue;
+    }
+
     const row = rows.find((item) => item?.symbol === apiSymbol);
     if (!row) {
       continue;
@@ -135,4 +157,30 @@ function normalizeQuotes(
   }
 
   return quotes;
+}
+
+function extractRows(raw: unknown): TwelveDataQuote[] {
+  if (Array.isArray(raw)) {
+    return raw.filter(isQuoteRow);
+  }
+
+  if (!raw || typeof raw !== "object") {
+    return [];
+  }
+
+  return Object.values(raw as Record<string, unknown>).filter(isQuoteRow);
+}
+
+function isQuoteRow(value: unknown): value is TwelveDataQuote {
+  return Boolean(value && typeof value === "object" && "symbol" in value);
+}
+
+function getMissingSymbolEnvNames(symbols: Record<QuoteSymbol, string | undefined>): string[] {
+  return (Object.entries(symbols) as Array<[QuoteSymbol, string | undefined]>)
+    .filter(([, symbol]) => !symbol)
+    .map(([localSymbol]) => SYMBOL_ENV_NAMES[localSymbol]);
+}
+
+function getMissingQuotes(quotes: QuoteMap): QuoteSymbol[] {
+  return (Object.keys(NAMES) as QuoteSymbol[]).filter((symbol) => !quotes[symbol]);
 }

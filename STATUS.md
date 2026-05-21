@@ -2,11 +2,20 @@
 
 > 日常开发状态文件。每任务简短更新。阶段交接信息见 CURRENT.md（如存在）。
 
-当前任务：MVP-0 页面交互验收通过，等待阶段技术复核
+当前任务：MVP-1 真实行情源接入代码已完成，等待本地命令 runner 恢复后验证与提交
 当前执行者：Codex
 最近提交：docs: record MVP-0 interaction acceptance
 下一步：
-1. 阶段结束前进行一次技术复核
+1. 运行 npm test
+2. 运行 npm run build
+3. 运行 git diff --check
+4. 验证通过后提交 feat: connect quotes api to market data provider
+MVP-1 进行记录（2026-05-21）：
+- /api/quotes 增加 source、isMock、warning 返回字段
+- Twelve Data 行情接入保留 mock fallback
+- COMEX 黄金、COMEX 白银 symbol 改为必须由环境变量配置，不默认假设 GC / SI 可用
+- 增加 Twelve Data /etf、/commodities reference data 查询说明和本地辅助脚本
+- 本地命令 runner 审批连续超时，npm test / npm run build / git diff --check / git commit 尚未执行成功
 MVP-0 手动验收记录（2026-05-20）：
 - mock 行情正常显示
 - COMEX 黄金、COMEX 白银点位输入正常

@@ -16,6 +16,8 @@ export type QuotePayload = {
   quotes: QuoteMap;
   updatedAt: string | null;
   source: "twelvedata" | "mock";
+  isMock: boolean;
+  warning?: string;
   error?: string;
 };
 
