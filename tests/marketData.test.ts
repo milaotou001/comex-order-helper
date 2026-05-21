@@ -57,6 +57,9 @@ describe("marketData", () => {
     }));
 
     const payload = await fetchMarketQuotes();
+    const apiNinjasUrls = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls
+      .map(([input]) => input.toString())
+      .filter((url: string) => url.includes("api.api-ninjas.com"));
 
     expect(payload.source).toBe("mixed");
     expect(payload.isMock).toBe(false);
@@ -66,6 +69,11 @@ describe("marketData", () => {
     expect(payload.quotes.SI?.price).toBe(72.25);
     expect(payload.items?.comexGold.price).toBe(4601.5);
     expect(payload.items?.AGQ.price).toBe(145.26);
+    expect(apiNinjasUrls).toHaveLength(2);
+    expect(apiNinjasUrls.some((url: string) => new URL(url).searchParams.get("name") === "gold")).toBe(true);
+    expect(apiNinjasUrls.some((url: string) => new URL(url).searchParams.get("name") === "silver")).toBe(true);
+    expect(apiNinjasUrls.some((url: string) => new URL(url).searchParams.get("name") === "GC")).toBe(false);
+    expect(apiNinjasUrls.some((url: string) => new URL(url).searchParams.get("name") === "SI")).toBe(false);
   });
 
   it("falls back to mock when COMEX futures source fails", async () => {

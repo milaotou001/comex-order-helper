@@ -9,6 +9,17 @@ const DEFAULT_ETF_SYMBOLS: Record<(typeof ETF_SYMBOLS)[number], string> = {
   AGQ: "AGQ"
 };
 
+const COMEX_FUTURES = [
+  {
+    quoteSymbol: "GC",
+    commodityName: "gold"
+  },
+  {
+    quoteSymbol: "SI",
+    commodityName: "silver"
+  }
+] as const;
+
 const NAMES: Record<QuoteSymbol, string> = {
   GC: "COMEX黄金",
   SI: "COMEX白银",
@@ -88,21 +99,18 @@ async function fetchComexFuturesQuotes(): Promise<QuoteMap> {
     throw new Error("未配置 COMMODITY_DATA_API_KEY，COMEX futures 源不可用");
   }
 
-  const [gold, silver] = await Promise.all([
-    fetchApiNinjasCommodity("gold", "GC"),
-    fetchApiNinjasCommodity("silver", "SI")
-  ]);
+  const quotes = await Promise.all(COMEX_FUTURES.map(fetchApiNinjasCommodity));
 
-  return {
-    GC: gold,
-    SI: silver
-  };
+  return quotes.reduce<QuoteMap>((quoteMap, quote) => {
+    quoteMap[quote.symbol] = quote;
+    return quoteMap;
+  }, {});
 }
 
-async function fetchApiNinjasCommodity(name: "gold" | "silver", symbol: "GC" | "SI"): Promise<Quote> {
+async function fetchApiNinjasCommodity(commodity: (typeof COMEX_FUTURES)[number]): Promise<Quote> {
   const apiKey = process.env.COMMODITY_DATA_API_KEY;
   const endpoint = new URL("https://api.api-ninjas.com/v1/commodityprice");
-  endpoint.searchParams.set("name", name);
+  endpoint.searchParams.set("name", commodity.commodityName);
 
   const response = await fetch(endpoint, {
     headers: {
@@ -112,18 +120,18 @@ async function fetchApiNinjasCommodity(name: "gold" | "silver", symbol: "GC" | "
   });
 
   if (!response.ok) {
-    throw new Error(`COMEX futures 源请求失败：${symbol} HTTP ${response.status}`);
+    throw new Error(`COMEX futures 源请求失败：${commodity.commodityName}/${commodity.quoteSymbol} HTTP ${response.status}`);
   }
 
   const raw = await response.json() as ApiNinjasCommodity;
   const price = Number(raw.price);
   if (!Number.isFinite(price) || price <= 0) {
-    throw new Error(`COMEX futures 源价格无效：${symbol}`);
+    throw new Error(`COMEX futures 源价格无效：${commodity.commodityName}/${commodity.quoteSymbol}`);
   }
 
   return {
-    symbol,
-    name: NAMES[symbol],
+    symbol: commodity.quoteSymbol,
+    name: NAMES[commodity.quoteSymbol],
     price,
     updatedAt: formatApiNinjasUpdatedAt(raw.updated)
   };
