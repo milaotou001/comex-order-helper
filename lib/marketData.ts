@@ -120,7 +120,9 @@ async function fetchApiNinjasCommodity(commodity: (typeof COMEX_FUTURES)[number]
   });
 
   if (!response.ok) {
-    throw new Error(`COMEX futures 源请求失败：${commodity.commodityName}/${commodity.quoteSymbol} HTTP ${response.status}`);
+    const body = await readResponseBody(response);
+    const detail = body ? `，API-Ninjas 返回：${body}` : "";
+    throw new Error(`COMEX futures 源请求失败：${commodity.commodityName}/${commodity.quoteSymbol} HTTP ${response.status}${detail}`);
   }
 
   const raw = await response.json() as ApiNinjasCommodity;
@@ -135,6 +137,22 @@ async function fetchApiNinjasCommodity(commodity: (typeof COMEX_FUTURES)[number]
     price,
     updatedAt: formatApiNinjasUpdatedAt(raw.updated)
   };
+}
+
+async function readResponseBody(response: Response): Promise<string> {
+  try {
+    const body = await response.text();
+    return sanitizeDiagnosticText(body);
+  } catch {
+    return "";
+  }
+}
+
+function sanitizeDiagnosticText(value: string): string {
+  return value
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 240);
 }
 
 async function fetchEtfQuotes(): Promise<QuoteMap> {

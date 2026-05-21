@@ -60,6 +60,8 @@ describe("marketData", () => {
     const apiNinjasUrls = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls
       .map(([input]) => input.toString())
       .filter((url: string) => url.includes("api.api-ninjas.com"));
+    const apiNinjasRequests = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls
+      .filter(([input]) => input.toString().includes("api.api-ninjas.com"));
 
     expect(payload.source).toBe("mixed");
     expect(payload.isMock).toBe(false);
@@ -74,16 +76,22 @@ describe("marketData", () => {
     expect(apiNinjasUrls.some((url: string) => new URL(url).searchParams.get("name") === "silver")).toBe(true);
     expect(apiNinjasUrls.some((url: string) => new URL(url).searchParams.get("name") === "GC")).toBe(false);
     expect(apiNinjasUrls.some((url: string) => new URL(url).searchParams.get("name") === "SI")).toBe(false);
+    expect(apiNinjasRequests.every(([, init]) => init?.headers?.["X-Api-Key"] === "test-comex-key")).toBe(true);
   });
 
-  it("falls back to mock when COMEX futures source fails", async () => {
+  it("includes API-Ninjas error body when COMEX futures source fails", async () => {
     process.env.COMMODITY_DATA_API_KEY = "test-comex-key";
     process.env.MARKET_DATA_API_KEY = "test-etf-key";
 
     vi.stubGlobal("fetch", vi.fn(async (input: URL | RequestInfo) => {
       const url = input.toString();
       if (url.includes("api.api-ninjas.com")) {
-        return { ok: false, status: 503, json: async () => ({}) };
+        return {
+          ok: false,
+          status: 400,
+          text: async () => "{\"error\":\"Invalid commodity name\"}",
+          json: async () => ({})
+        };
       }
       return jsonResponse({});
     }));
@@ -93,6 +101,9 @@ describe("marketData", () => {
     expect(payload.source).toBe("mock");
     expect(payload.isMock).toBe(true);
     expect(payload.warning).toContain("COMEX futures 源请求失败");
+    expect(payload.warning).toContain("HTTP 400");
+    expect(payload.warning).toContain("Invalid commodity name");
+    expect(payload.warning).not.toContain("test-comex-key");
   });
 
   it("falls back to mock when any ETF quote is missing", async () => {

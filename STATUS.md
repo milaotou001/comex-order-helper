@@ -2,12 +2,21 @@
 
 > 日常开发状态文件。每任务简短更新。阶段交接信息见 CURRENT.md（如存在）。
 
-当前任务：MVP-1 API-Ninjas COMEX futures 参数修复完成，等待真实接口复验
+当前任务：MVP-1 API-Ninjas COMEX futures 诊断增强完成，等待真实接口复验
 当前执行者：Codex
-最近提交：fix: use api-ninjas commodity names for comex quotes
+最近提交：fix: improve api-ninjas commodity diagnostics
 下一步：
-1. 配置 COMMODITY_DATA_API_KEY 与 MARKET_DATA_API_KEY 后重新调用 /api/quotes
+1. 运行 npm run check:api-ninjas 查看 gold / silver / micro_silver 返回体
+2. 配置 COMMODITY_DATA_API_KEY 与 MARKET_DATA_API_KEY 后重新调用 /api/quotes
 2. 阶段结束前进行一次技术复核
+MVP-1 诊断增强记录（2026-05-21）：
+- API-Ninjas 非 2xx 响应会读取 response body，并写入 warning/error
+- 新增 npm run check:api-ninjas，独立检查 gold / silver / micro_silver
+- 诊断输出不打印 API Key
+验证记录（2026-05-21 API-Ninjas 诊断增强）：
+- npm test: 3 files, 13 tests, all passed
+- npm run build: 3 routes compiled
+- git diff --check: passed
 MVP-1 修复记录（2026-05-21）：
 - API-Ninjas commodityprice 请求参数固定来自 commodity name：gold / silver
 - 内部展示继续映射为 GC / COMEX黄金、SI / COMEX白银
