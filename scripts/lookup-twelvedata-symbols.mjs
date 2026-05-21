@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 const API_BASE = "https://api.twelvedata.com";
-const DEFAULT_TERMS = ["gold", "silver", "comex", "cme", "iau", "ugl", "slv", "agq"];
+const DEFAULT_TERMS = ["iau", "ugl", "slv", "agq"];
 
 loadDotEnvLocal();
 
@@ -15,7 +15,6 @@ if (!apiKey) {
 const terms = process.argv.slice(2).length > 0 ? process.argv.slice(2) : DEFAULT_TERMS;
 
 await showMatches("ETF reference data", "/etf", terms);
-await showMatches("Commodities reference data", "/commodities", terms);
 
 async function showMatches(title, pathname, keywords) {
   const url = new URL(pathname, API_BASE);

@@ -12,10 +12,24 @@ export type Quote = {
 
 export type QuoteMap = Partial<Record<QuoteSymbol, Quote>>;
 
+export type QuoteItems = {
+  comexGold: Quote;
+  comexSilver: Quote;
+  IAU: Quote;
+  UGL: Quote;
+  SLV: Quote;
+  AGQ: Quote;
+};
+
 export type QuotePayload = {
   quotes: QuoteMap;
+  items?: QuoteItems;
   updatedAt: string | null;
-  source: "twelvedata" | "mock";
+  source: "mixed" | "mock";
+  sources?: {
+    comex: "api-ninjas";
+    etf: "twelvedata";
+  };
   isMock: boolean;
   warning?: string;
   error?: string;

@@ -15,7 +15,7 @@ export default function Home() {
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
   const [quoteError, setQuoteError] = useState<string | undefined>();
   const [loading, setLoading] = useState(false);
-  const [source, setSource] = useState<"twelvedata" | "mock">("mock");
+  const [source, setSource] = useState<QuotePayload["source"]>("mock");
   const [settings, setSettings] = useState<OrderSettings>(DEFAULT_SETTINGS);
   const [goldPoints, setGoldPoints] = useState("");
   const [silverPoints, setSilverPoints] = useState("");

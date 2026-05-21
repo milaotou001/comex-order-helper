@@ -1,11 +1,13 @@
-import type { Quote, QuoteMap, QuotePayload, QuoteSymbol } from "./types";
+import type { Quote, QuoteItems, QuoteMap, QuotePayload, QuoteSymbol } from "./types";
 
-const DEFAULT_ETF_SYMBOLS = {
+const ETF_SYMBOLS = ["IAU", "UGL", "SLV", "AGQ"] as const;
+
+const DEFAULT_ETF_SYMBOLS: Record<(typeof ETF_SYMBOLS)[number], string> = {
   IAU: "IAU",
   UGL: "UGL",
   SLV: "SLV",
   AGQ: "AGQ"
-} as const;
+};
 
 const NAMES: Record<QuoteSymbol, string> = {
   GC: "COMEX黄金",
@@ -16,13 +18,11 @@ const NAMES: Record<QuoteSymbol, string> = {
   AGQ: "AGQ"
 };
 
-const SYMBOL_ENV_NAMES: Record<QuoteSymbol, string> = {
-  GC: "COMEX_GOLD_SYMBOL",
-  SI: "COMEX_SILVER_SYMBOL",
-  IAU: "IAU_SYMBOL",
-  UGL: "UGL_SYMBOL",
-  SLV: "SLV_SYMBOL",
-  AGQ: "AGQ_SYMBOL"
+type ApiNinjasCommodity = {
+  exchange?: string;
+  name?: string;
+  price?: number | string;
+  updated?: number | string;
 };
 
 type TwelveDataQuote = {
@@ -43,42 +43,16 @@ const MOCK_QUOTES: QuoteMap = {
 };
 
 export async function fetchMarketQuotes(): Promise<QuotePayload> {
-  const apiKey = process.env.MARKET_DATA_API_KEY;
-  const provider = process.env.MARKET_DATA_PROVIDER ?? "twelvedata";
-
-  if (provider !== "twelvedata") {
-    return mockPayload("当前仅支持 Twelve Data 行情源，使用 mock 行情");
-  }
-
-  if (!apiKey) {
-    return mockPayload("未配置 MARKET_DATA_API_KEY，使用 mock 行情");
-  }
-
-  const symbols = getSymbols();
-  const missingSymbols = getMissingSymbolEnvNames(symbols);
-  if (missingSymbols.length > 0) {
-    return mockPayload(`未配置 Twelve Data symbol：${missingSymbols.join(", ")}，使用 mock 行情`);
-  }
-
-  const apiSymbols = Object.values(symbols)
-    .filter((symbol): symbol is string => Boolean(symbol))
-    .join(",");
-  const endpoint = new URL("https://api.twelvedata.com/quote");
-  endpoint.searchParams.set("symbol", apiSymbols);
-  endpoint.searchParams.set("apikey", apiKey);
-
   try {
-    const response = await fetch(endpoint, {
-      next: { revalidate: 0 }
-    });
+    const [comexQuotes, etfQuotes] = await Promise.all([
+      fetchComexFuturesQuotes(),
+      fetchEtfQuotes()
+    ]);
 
-    if (!response.ok) {
-      return mockPayload(`行情请求失败：${response.status}，回退 mock 行情`);
-    }
-
-    const raw = await response.json();
-    const now = new Date().toISOString();
-    const quotes = normalizeQuotes(raw, symbols, now);
+    const quotes: QuoteMap = {
+      ...comexQuotes,
+      ...etfQuotes
+    };
 
     const missingQuotes = getMissingQuotes(quotes);
     if (missingQuotes.length > 0) {
@@ -87,18 +61,107 @@ export async function fetchMarketQuotes(): Promise<QuotePayload> {
 
     return {
       quotes,
-      updatedAt: now,
-      source: "twelvedata",
+      items: buildItems(quotes),
+      updatedAt: new Date().toISOString(),
+      source: "mixed",
+      sources: {
+        comex: "api-ninjas",
+        etf: "twelvedata"
+      },
       isMock: false
     };
-  } catch {
-    return mockPayload("行情请求异常，回退 mock 行情");
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "真实行情请求异常";
+    return mockPayload(`${message}，回退 mock 行情`);
   }
+}
+
+async function fetchComexFuturesQuotes(): Promise<QuoteMap> {
+  const provider = process.env.COMMODITY_DATA_PROVIDER ?? "api-ninjas";
+  const apiKey = process.env.COMMODITY_DATA_API_KEY;
+
+  if (provider !== "api-ninjas") {
+    throw new Error("COMEX futures 源未配置为 api-ninjas");
+  }
+
+  if (!apiKey) {
+    throw new Error("未配置 COMMODITY_DATA_API_KEY，COMEX futures 源不可用");
+  }
+
+  const [gold, silver] = await Promise.all([
+    fetchApiNinjasCommodity("gold", "GC"),
+    fetchApiNinjasCommodity("silver", "SI")
+  ]);
+
+  return {
+    GC: gold,
+    SI: silver
+  };
+}
+
+async function fetchApiNinjasCommodity(name: "gold" | "silver", symbol: "GC" | "SI"): Promise<Quote> {
+  const apiKey = process.env.COMMODITY_DATA_API_KEY;
+  const endpoint = new URL("https://api.api-ninjas.com/v1/commodityprice");
+  endpoint.searchParams.set("name", name);
+
+  const response = await fetch(endpoint, {
+    headers: {
+      "X-Api-Key": apiKey ?? ""
+    },
+    next: { revalidate: 0 }
+  });
+
+  if (!response.ok) {
+    throw new Error(`COMEX futures 源请求失败：${symbol} HTTP ${response.status}`);
+  }
+
+  const raw = await response.json() as ApiNinjasCommodity;
+  const price = Number(raw.price);
+  if (!Number.isFinite(price) || price <= 0) {
+    throw new Error(`COMEX futures 源价格无效：${symbol}`);
+  }
+
+  return {
+    symbol,
+    name: NAMES[symbol],
+    price,
+    updatedAt: formatApiNinjasUpdatedAt(raw.updated)
+  };
+}
+
+async function fetchEtfQuotes(): Promise<QuoteMap> {
+  const provider = process.env.MARKET_DATA_PROVIDER ?? "twelvedata";
+  const apiKey = process.env.MARKET_DATA_API_KEY;
+
+  if (provider !== "twelvedata") {
+    throw new Error("ETF 行情源未配置为 twelvedata");
+  }
+
+  if (!apiKey) {
+    throw new Error("未配置 MARKET_DATA_API_KEY，ETF 行情源不可用");
+  }
+
+  const symbols = getEtfSymbols();
+  const endpoint = new URL("https://api.twelvedata.com/quote");
+  endpoint.searchParams.set("symbol", Object.values(symbols).join(","));
+  endpoint.searchParams.set("apikey", apiKey);
+
+  const response = await fetch(endpoint, {
+    next: { revalidate: 0 }
+  });
+
+  if (!response.ok) {
+    throw new Error(`ETF 行情源请求失败：HTTP ${response.status}`);
+  }
+
+  const raw = await response.json();
+  return normalizeEtfQuotes(raw, symbols, new Date().toISOString());
 }
 
 function mockPayload(reason: string): QuotePayload {
   return {
     quotes: MOCK_QUOTES,
+    items: buildItems(MOCK_QUOTES),
     updatedAt: new Date().toISOString(),
     source: "mock",
     isMock: true,
@@ -107,10 +170,8 @@ function mockPayload(reason: string): QuotePayload {
   };
 }
 
-function getSymbols(): Record<QuoteSymbol, string | undefined> {
+function getEtfSymbols(): Record<(typeof ETF_SYMBOLS)[number], string> {
   return {
-    GC: process.env.COMEX_GOLD_SYMBOL,
-    SI: process.env.COMEX_SILVER_SYMBOL,
     IAU: process.env.IAU_SYMBOL ?? DEFAULT_ETF_SYMBOLS.IAU,
     UGL: process.env.UGL_SYMBOL ?? DEFAULT_ETF_SYMBOLS.UGL,
     SLV: process.env.SLV_SYMBOL ?? DEFAULT_ETF_SYMBOLS.SLV,
@@ -118,19 +179,15 @@ function getSymbols(): Record<QuoteSymbol, string | undefined> {
   };
 }
 
-function normalizeQuotes(
+function normalizeEtfQuotes(
   raw: unknown,
-  symbols: Record<QuoteSymbol, string | undefined>,
+  symbols: Record<(typeof ETF_SYMBOLS)[number], string>,
   now: string
 ): QuoteMap {
   const rows = extractRows(raw);
   const quotes: QuoteMap = {};
 
-  for (const [localSymbol, apiSymbol] of Object.entries(symbols) as Array<[QuoteSymbol, string | undefined]>) {
-    if (!apiSymbol) {
-      continue;
-    }
-
+  for (const [localSymbol, apiSymbol] of Object.entries(symbols) as Array<[(typeof ETF_SYMBOLS)[number], string]>) {
     const row = rows.find((item) => item?.symbol === apiSymbol);
     if (!row) {
       continue;
@@ -175,12 +232,42 @@ function isQuoteRow(value: unknown): value is TwelveDataQuote {
   return Boolean(value && typeof value === "object" && "symbol" in value);
 }
 
-function getMissingSymbolEnvNames(symbols: Record<QuoteSymbol, string | undefined>): string[] {
-  return (Object.entries(symbols) as Array<[QuoteSymbol, string | undefined]>)
-    .filter(([, symbol]) => !symbol)
-    .map(([localSymbol]) => SYMBOL_ENV_NAMES[localSymbol]);
-}
-
 function getMissingQuotes(quotes: QuoteMap): QuoteSymbol[] {
   return (Object.keys(NAMES) as QuoteSymbol[]).filter((symbol) => !quotes[symbol]);
+}
+
+function buildItems(quotes: QuoteMap): QuoteItems {
+  return {
+    comexGold: requireQuote(quotes, "GC"),
+    comexSilver: requireQuote(quotes, "SI"),
+    IAU: requireQuote(quotes, "IAU"),
+    UGL: requireQuote(quotes, "UGL"),
+    SLV: requireQuote(quotes, "SLV"),
+    AGQ: requireQuote(quotes, "AGQ")
+  };
+}
+
+function requireQuote(quotes: QuoteMap, symbol: QuoteSymbol): Quote {
+  const quote = quotes[symbol];
+  if (!quote) {
+    throw new Error(`缺少行情：${symbol}`);
+  }
+  return quote;
+}
+
+function formatApiNinjasUpdatedAt(value: ApiNinjasCommodity["updated"]): string {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    const milliseconds = value > 10_000_000_000 ? value : value * 1000;
+    return new Date(milliseconds).toISOString();
+  }
+
+  if (typeof value === "string" && value) {
+    const numeric = Number(value);
+    if (Number.isFinite(numeric)) {
+      return formatApiNinjasUpdatedAt(numeric);
+    }
+    return value;
+  }
+
+  return new Date().toISOString();
 }

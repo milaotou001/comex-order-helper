@@ -2,20 +2,22 @@
 
 > 日常开发状态文件。每任务简短更新。阶段交接信息见 CURRENT.md（如存在）。
 
-当前任务：MVP-1 真实行情源接入代码已完成，等待本地命令 runner 恢复后验证与提交
+当前任务：MVP-1 真实行情源接入完成，等待阶段复核
 当前执行者：Codex
-最近提交：docs: record MVP-0 interaction acceptance
+最近提交：feat: connect comex futures and etf quotes
 下一步：
-1. 运行 npm test
-2. 运行 npm run build
-3. 运行 git diff --check
-4. 验证通过后提交 feat: connect quotes api to market data provider
-MVP-1 进行记录（2026-05-21）：
-- /api/quotes 增加 source、isMock、warning 返回字段
-- Twelve Data 行情接入保留 mock fallback
-- COMEX 黄金、COMEX 白银 symbol 改为必须由环境变量配置，不默认假设 GC / SI 可用
-- 增加 Twelve Data /etf、/commodities reference data 查询说明和本地辅助脚本
-- 本地命令 runner 审批连续超时，npm test / npm run build / git diff --check / git commit 尚未执行成功
+1. 配置 COMMODITY_DATA_API_KEY 与 MARKET_DATA_API_KEY 后进行真实接口手动验收
+2. 阶段结束前进行一次技术复核
+MVP-1 完成记录（2026-05-21）：
+- /api/quotes 聚合 API-Ninjas COMEX rolling futures 与 Twelve Data ETF 行情
+- 真实行情返回 source: "mixed"、isMock: false、sources.comex/api-ninjas、sources.etf/twelvedata
+- futures 或 ETF 任一源失败时整套 fallback 到 mock，并返回 warning
+- Twelve Data symbol 辅助脚本仅用于 ETF reference data 查询
+- README 与页面风险提示已说明 rolling futures contract price 仅供挂单换算参考
+验证记录（2026-05-21 MVP-1）：
+- npm test: 3 files, 13 tests, all passed
+- npm run build: 3 routes compiled
+- git diff --check: passed
 MVP-0 手动验收记录（2026-05-20）：
 - mock 行情正常显示
 - COMEX 黄金、COMEX 白银点位输入正常
