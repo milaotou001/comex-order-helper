@@ -112,7 +112,7 @@ async function fetchComexFuturesQuotes(): Promise<QuoteMap> {
   return quotes;
 }
 
-const FETCH_TIMEOUT_MS = 15000;
+const FETCH_TIMEOUT_MS = 30000;
 
 async function fetchWithTimeout(url: URL, options?: RequestInit): Promise<Response> {
   const controller = new AbortController();

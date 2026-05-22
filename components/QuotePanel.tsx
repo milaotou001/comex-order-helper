@@ -22,11 +22,6 @@ export function QuotePanel({ quotes, updatedAt, error, loading, onRefresh, isMoc
       <div className="mb-3 flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <h2 className="text-lg font-semibold text-white">当前行情</h2>
-          {isMock ? (
-            <span className="rounded-md border border-amber/50 bg-amber/10 px-2 py-0.5 text-xs text-amber">
-              mock 行情（仅用于 MVP-0 验收）
-            </span>
-          ) : null}
         </div>
         <button
           type="button"
