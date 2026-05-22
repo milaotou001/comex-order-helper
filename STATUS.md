@@ -2,12 +2,20 @@
 
 > 日常开发状态文件。每任务简短更新。阶段交接信息见 CURRENT.md（如存在）。
 
-当前任务：MVP-1c Stooq 延迟 COMEX 行情接入完成，等待真实接口复验
+当前任务：MVP-1c Stooq HTML 价格解析容错修复完成，等待真实接口复验
 当前执行者：Codex
 最近提交：feat: use stooq delayed comex quotes
 下一步：
 1. 配置 MARKET_DATA_API_KEY 后重新调用 /api/quotes
 2. 阶段结束前进行一次技术复核
+MVP-1c 修复记录（2026-05-22）：
+- Stooq HTML 解析改为定位 Gold (GC.F) / Silver (SI.F) 后按合理价格区间提取数值
+- 支持真实片段格式：Gold (GC.F) 22 maj , 14:15 4531.07 -11.43 (-0.25%)
+- SI.F 原始值大于 1000 时继续按 /100 归一化
+验证记录（2026-05-22 Stooq HTML 容错修复）：
+- npm test: 3 files, 16 tests, all passed
+- npm run build: 3 routes compiled
+- git diff --check: passed
 MVP-1c 完成记录（2026-05-22）：
 - COMEX 黄金、COMEX 白银改用 Stooq 延迟商品期货行情：GC.F、SI.F
 - Stooq XML quote 解析逻辑集中在 lib/marketData.ts，并有 GC.F / SI.F 单测覆盖

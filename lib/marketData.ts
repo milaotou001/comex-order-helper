@@ -268,19 +268,22 @@ function requireQuote(quotes: QuoteMap, symbol: QuoteSymbol): Quote {
 export function parseStooqQuoteHtml(html: string, stooqSymbol: "GC.F" | "SI.F", quoteSymbol: "GC" | "SI"): StooqQuote {
   const text = htmlToText(html);
   const symbolPattern = escapeRegExp(stooqSymbol);
-  const pagePattern = new RegExp(`(?:Gold|Silver)\\s*\\(${symbolPattern}\\)([\\s\\S]{0,180}?)(\\d{1,2}\\s+[^\\s,]+,\\s+\\d{1,2}:\\d{2})\\s+([0-9]+(?:[.,][0-9]+)?)`, "i");
-  const pageMatch = text.match(pagePattern);
+  const titlePattern = new RegExp(`(?:Gold|Silver)\\s*\\(${symbolPattern}\\)`, "i");
+  const titleMatch = text.match(titlePattern);
 
-  if (pageMatch) {
-    const rawPrice = parseStooqNumber(pageMatch[3]);
-    return buildStooqQuote(stooqSymbol, quoteSymbol, rawPrice, pageMatch[2], pageMatch[0]);
+  if (titleMatch?.index !== undefined) {
+    const snippet = text.slice(titleMatch.index, titleMatch.index + 240);
+    const rawPrice = findReasonableStooqPrice(getLikelyPriceSegment(snippet), quoteSymbol);
+    if (rawPrice !== null) {
+      return buildStooqQuote(stooqSymbol, quoteSymbol, rawPrice, new Date().toISOString(), snippet);
+    }
   }
 
   const mainPattern = new RegExp(`${symbolPattern}\\s+(?:GOLD|SILVER)\\s*([0-9]+(?:[.,][0-9]+)?)`, "i");
   const mainMatch = text.match(mainPattern);
 
   if (mainMatch) {
-    const rawPrice = parseStooqNumber(mainMatch[1]);
+    const rawPrice = findReasonableStooqPrice(mainMatch[0], quoteSymbol) ?? parseStooqNumber(mainMatch[1]);
     return buildStooqQuote(stooqSymbol, quoteSymbol, rawPrice, new Date().toISOString(), mainMatch[0]);
   }
 
@@ -321,6 +324,41 @@ function htmlToText(html: string): string {
 
 function parseStooqNumber(value: string): number {
   return Number(value.replace(",", "."));
+}
+
+function findReasonableStooqPrice(snippet: string, quoteSymbol: "GC" | "SI"): number | null {
+  const matches = snippet.matchAll(/(?<![\d.])-?\d+(?:[.,]\d+)(?![\d.])/g);
+
+  for (const match of matches) {
+    const raw = parseStooqNumber(match[0]);
+    const normalized = quoteSymbol === "SI" && raw > 1000 ? raw / 100 : raw;
+
+    if (isReasonableComexPrice(normalized, quoteSymbol)) {
+      return raw;
+    }
+  }
+
+  return null;
+}
+
+function getLikelyPriceSegment(snippet: string): string {
+  const timeMatch = snippet.match(/\b\d{1,2}:\d{2}\b/);
+  if (timeMatch?.index !== undefined) {
+    return snippet.slice(timeMatch.index + timeMatch[0].length);
+  }
+  return snippet;
+}
+
+function isReasonableComexPrice(price: number, quoteSymbol: "GC" | "SI"): boolean {
+  if (!Number.isFinite(price)) {
+    return false;
+  }
+
+  if (quoteSymbol === "GC") {
+    return price >= 1000 && price <= 10000;
+  }
+
+  return price >= 5 && price <= 200;
 }
 
 function createDiagnosticSnippet(text: string, stooqSymbol: string): string {

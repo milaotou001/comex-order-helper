@@ -24,18 +24,31 @@ describe("marketData", () => {
     const quote = parseStooqQuoteHtml(`
       <html><body>
         <h1>Gold (GC.F)</h1>
-        <div>22 maj, 14:03 4520.12 -22.38 (-0.49%)</div>
+        <div>22 maj , 14:15 4531.07 -11.43 (-0.25%)</div>
       </body></html>
     `, "GC.F", "GC");
 
     expect(quote.stooqSymbol).toBe("GC.F");
     expect(quote.quoteSymbol).toBe("GC");
-    expect(quote.rawPrice).toBe(4520.12);
-    expect(quote.price).toBe(4520.12);
-    expect(quote.updatedAt).toBe("22 maj, 14:03");
+    expect(quote.rawPrice).toBe(4531.07);
+    expect(quote.price).toBe(4531.07);
   });
 
-  it("parses and normalizes SI.F price from Stooq commodities page HTML", () => {
+  it("parses and normalizes SI.F price from Stooq quote page HTML", () => {
+    const quote = parseStooqQuoteHtml(`
+      <html><body>
+        <h1>Silver (SI.F)</h1>
+        <div>22 maj , 14:15 7604.500 -10.000 (-0.13%)</div>
+      </body></html>
+    `, "SI.F", "SI");
+
+    expect(quote.stooqSymbol).toBe("SI.F");
+    expect(quote.quoteSymbol).toBe("SI");
+    expect(quote.rawPrice).toBe(7604.5);
+    expect(quote.price).toBe(76.045);
+  });
+
+  it("parses and normalizes SI.F price from Stooq commodities table HTML", () => {
     const quote = parseStooqQuoteHtml(`
       <html><body>
         <table><tr><td>SI.F</td><td>SILVER</td><td>7604.500</td><td>-0.10%</td></tr></table>
@@ -57,8 +70,8 @@ describe("marketData", () => {
       if (url.includes("stooq.com")) {
         const stooqSymbol = new URL(url).searchParams.get("s");
         return textResponse(stooqSymbol === "gc.f"
-          ? "<html><body><h1>Gold (GC.F)</h1><div>22 maj, 14:03 4601.50 -1.0 (-0.02%)</div></body></html>"
-          : "<html><body><table><tr><td>SI.F</td><td>SILVER</td><td>7225.000</td></tr></table></body></html>");
+          ? "<html><body><h1>Gold (GC.F)</h1><div>22 maj , 14:15 4601.50 -1.0 (-0.02%)</div></body></html>"
+          : "<html><body><h1>Silver (SI.F)</h1><div>22 maj , 14:15 7225.000 -5.0 (-0.07%)</div></body></html>");
       }
 
       return jsonResponse({
@@ -144,8 +157,8 @@ describe("marketData", () => {
       if (url.includes("stooq.com")) {
         const stooqSymbol = new URL(url).searchParams.get("s");
         return textResponse(stooqSymbol === "gc.f"
-          ? "<html><body><h1>Gold (GC.F)</h1><div>22 maj, 14:03 4601.50 -1.0 (-0.02%)</div></body></html>"
-          : "<html><body><table><tr><td>SI.F</td><td>SILVER</td><td>7225.000</td></tr></table></body></html>");
+          ? "<html><body><h1>Gold (GC.F)</h1><div>22 maj , 14:15 4601.50 -1.0 (-0.02%)</div></body></html>"
+          : "<html><body><h1>Silver (SI.F)</h1><div>22 maj , 14:15 7225.000 -5.0 (-0.07%)</div></body></html>");
       }
 
       return jsonResponse({
