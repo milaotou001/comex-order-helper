@@ -39,7 +39,7 @@ export function PointInput({ metal, points, recognizedCount, ignoredCount, onPoi
       </div>
 
       <textarea
-        inputMode="decimal"
+        inputMode="text"
         value={points}
         onChange={(event) => onPointsChange(event.target.value)}
         placeholder={placeholder}
