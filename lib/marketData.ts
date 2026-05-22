@@ -54,7 +54,7 @@ type StooqQuote = {
   snippet: string;
 };
 
-const MOCK_QUOTES: QuoteMap = {
+export const MOCK_QUOTES: QuoteMap = {
   GC: { symbol: "GC", name: "COMEX黄金", price: 4600, updatedAt: "mock" },
   SI: { symbol: "SI", name: "COMEX白银", price: 72, updatedAt: "mock" },
   IAU: { symbol: "IAU", name: "IAU", price: 86.55, updatedAt: "mock" },

@@ -5,6 +5,7 @@ import { PointInput } from "@/components/PointInput";
 import { QuotePanel } from "@/components/QuotePanel";
 import { ResultCard } from "@/components/ResultCard";
 import { buildConvertedOrder } from "@/lib/formulas";
+import { MOCK_QUOTES } from "@/lib/marketData";
 import { DEFAULT_SETTINGS } from "@/lib/settings";
 import type { ConvertedOrder, Metal, OrderSettings, QuoteMap, QuotePayload } from "@/lib/types";
 
@@ -57,10 +58,11 @@ export default function Home() {
     return () => window.clearInterval(timer);
   }, [refreshQuotes, settings.refreshIntervalMinutes]);
 
+  const resolvedQuotes = useMemo(() => ({ ...MOCK_QUOTES, ...quotes }), [quotes]);
   const goldParsed = useMemo(() => parsePointInput(goldPoints), [goldPoints]);
   const silverParsed = useMemo(() => parsePointInput(silverPoints), [silverPoints]);
-  const goldOrders = usePointOrders("gold", goldParsed.points, quotes, settings);
-  const silverOrders = usePointOrders("silver", silverParsed.points, quotes, settings);
+  const goldOrders = usePointOrders("gold", goldParsed.points, resolvedQuotes, settings);
+  const silverOrders = usePointOrders("silver", silverParsed.points, resolvedQuotes, settings);
   const activeOrders = activeMetal === "gold" ? goldOrders : silverOrders;
 
   useEffect(() => {
