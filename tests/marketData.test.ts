@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { fetchMarketQuotes, parseStooqQuoteXml } from "@/lib/marketData";
+import { fetchMarketQuotes, parseStooqQuoteHtml } from "@/lib/marketData";
 
 const ORIGINAL_ENV = { ...process.env };
 
@@ -20,40 +20,32 @@ describe("marketData", () => {
     expect(payload.items?.IAU.price).toBeGreaterThan(0);
   });
 
-  it("parses Stooq GC.F and SI.F quote XML", () => {
-    const quotes = parseStooqQuoteXml(`
-      <stooq>
-        <data>
-          <symbol>
-            <id>GC.F</id>
-            <date>20260522</date>
-            <time>173000</time>
-            <close>4601.5</close>
-          </symbol>
-          <symbol>
-            <id>SI.F</id>
-            <date>20260522</date>
-            <time>173000</time>
-            <close>72.25</close>
-          </symbol>
-        </data>
-      </stooq>
-    `);
+  it("parses GC.F price from Stooq quote page HTML", () => {
+    const quote = parseStooqQuoteHtml(`
+      <html><body>
+        <h1>Gold (GC.F)</h1>
+        <div>22 maj, 14:03 4520.12 -22.38 (-0.49%)</div>
+      </body></html>
+    `, "GC.F", "GC");
 
-    expect(quotes).toEqual([
-      {
-        stooqSymbol: "GC.F",
-        quoteSymbol: "GC",
-        price: 4601.5,
-        updatedAt: "2026-05-22T17:30:00+01:00"
-      },
-      {
-        stooqSymbol: "SI.F",
-        quoteSymbol: "SI",
-        price: 72.25,
-        updatedAt: "2026-05-22T17:30:00+01:00"
-      }
-    ]);
+    expect(quote.stooqSymbol).toBe("GC.F");
+    expect(quote.quoteSymbol).toBe("GC");
+    expect(quote.rawPrice).toBe(4520.12);
+    expect(quote.price).toBe(4520.12);
+    expect(quote.updatedAt).toBe("22 maj, 14:03");
+  });
+
+  it("parses and normalizes SI.F price from Stooq commodities page HTML", () => {
+    const quote = parseStooqQuoteHtml(`
+      <html><body>
+        <table><tr><td>SI.F</td><td>SILVER</td><td>7604.500</td><td>-0.10%</td></tr></table>
+      </body></html>
+    `, "SI.F", "SI");
+
+    expect(quote.stooqSymbol).toBe("SI.F");
+    expect(quote.quoteSymbol).toBe("SI");
+    expect(quote.rawPrice).toBe(7604.5);
+    expect(quote.price).toBe(76.045);
   });
 
   it("returns mixed payload when Stooq futures and Twelve Data ETFs both succeed", async () => {
@@ -62,15 +54,11 @@ describe("marketData", () => {
     vi.stubGlobal("fetch", vi.fn(async (input: URL | RequestInfo) => {
       const url = input.toString();
 
-      if (url.includes("stooq.pl")) {
-        return textResponse(`
-          <stooq>
-            <data>
-              <symbol><id>GC.F</id><date>20260522</date><time>173000</time><close>4601.5</close></symbol>
-              <symbol><id>SI.F</id><date>20260522</date><time>173000</time><close>72.25</close></symbol>
-            </data>
-          </stooq>
-        `);
+      if (url.includes("stooq.com")) {
+        const stooqSymbol = new URL(url).searchParams.get("s");
+        return textResponse(stooqSymbol === "gc.f"
+          ? "<html><body><h1>Gold (GC.F)</h1><div>22 maj, 14:03 4601.50 -1.0 (-0.02%)</div></body></html>"
+          : "<html><body><table><tr><td>SI.F</td><td>SILVER</td><td>7225.000</td></tr></table></body></html>");
       }
 
       return jsonResponse({
@@ -84,7 +72,7 @@ describe("marketData", () => {
     const payload = await fetchMarketQuotes();
     const stooqUrls = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls
       .map(([input]) => input.toString())
-      .filter((url: string) => url.includes("stooq.pl"));
+      .filter((url: string) => url.includes("stooq.com"));
 
     expect(payload.source).toBe("mixed");
     expect(payload.isMock).toBe(false);
@@ -94,9 +82,10 @@ describe("marketData", () => {
     expect(payload.quotes.SI?.price).toBe(72.25);
     expect(payload.items?.comexGold.price).toBe(4601.5);
     expect(payload.items?.AGQ.price).toBe(145.26);
-    expect(stooqUrls).toHaveLength(1);
-    expect(new URL(stooqUrls[0]).searchParams.get("s")).toBe("GC.F SI.F");
-    expect(new URL(stooqUrls[0]).searchParams.get("e")).toBe("xml");
+    expect(stooqUrls).toHaveLength(2);
+    expect(stooqUrls.some((url: string) => new URL(url).searchParams.get("s") === "gc.f")).toBe(true);
+    expect(stooqUrls.some((url: string) => new URL(url).searchParams.get("s") === "si.f")).toBe(true);
+    expect(stooqUrls.some((url: string) => url.includes("XAU") || url.includes("XAG"))).toBe(false);
   });
 
   it("falls back to mock when Stooq futures source fails", async () => {
@@ -104,7 +93,7 @@ describe("marketData", () => {
 
     vi.stubGlobal("fetch", vi.fn(async (input: URL | RequestInfo) => {
       const url = input.toString();
-      if (url.includes("stooq.pl")) {
+      if (url.includes("stooq.com")) {
         return {
           ok: false,
           status: 400,
@@ -124,21 +113,39 @@ describe("marketData", () => {
     expect(payload.warning).toContain("bad request");
   });
 
+  it("falls back to mock with Stooq parse diagnostic context", async () => {
+    process.env.MARKET_DATA_API_KEY = "test-etf-key";
+
+    vi.stubGlobal("fetch", vi.fn(async (input: URL | RequestInfo) => {
+      const url = input.toString();
+
+      if (url.includes("stooq.com")) {
+        return textResponse("<html><body><h1>Gold (GC.F)</h1><div>no price here</div></body></html>");
+      }
+
+      return jsonResponse({});
+    }));
+
+    const payload = await fetchMarketQuotes();
+
+    expect(payload.source).toBe("mock");
+    expect(payload.isMock).toBe(true);
+    expect(payload.warning).toContain("Stooq 页面解析失败");
+    expect(payload.warning).toContain("GC.F/GC");
+    expect(payload.warning).toContain("no price here");
+  });
+
   it("falls back to mock when any ETF quote is missing", async () => {
     process.env.MARKET_DATA_API_KEY = "test-etf-key";
 
     vi.stubGlobal("fetch", vi.fn(async (input: URL | RequestInfo) => {
       const url = input.toString();
 
-      if (url.includes("stooq.pl")) {
-        return textResponse(`
-          <stooq>
-            <data>
-              <symbol><id>GC.F</id><date>20260522</date><time>173000</time><close>4601.5</close></symbol>
-              <symbol><id>SI.F</id><date>20260522</date><time>173000</time><close>72.25</close></symbol>
-            </data>
-          </stooq>
-        `);
+      if (url.includes("stooq.com")) {
+        const stooqSymbol = new URL(url).searchParams.get("s");
+        return textResponse(stooqSymbol === "gc.f"
+          ? "<html><body><h1>Gold (GC.F)</h1><div>22 maj, 14:03 4601.50 -1.0 (-0.02%)</div></body></html>"
+          : "<html><body><table><tr><td>SI.F</td><td>SILVER</td><td>7225.000</td></tr></table></body></html>");
       }
 
       return jsonResponse({

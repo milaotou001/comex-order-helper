@@ -15,7 +15,7 @@ MVP-1c 完成记录（2026-05-22）：
 - Stooq 或 Twelve Data 任一源失败时整套 fallback 到 mock，并返回 warning
 - README 与页面风险提示已说明 Stooq 为延迟商品期货行情，不适合实时交易或高频交易
 验证记录（2026-05-22 MVP-1c）：
-- npm test: 3 files, 13 tests, all passed
+- npm test: 3 files, 15 tests, all passed
 - npm run build: 3 routes compiled
 - git diff --check: passed
 MVP-1b 完成记录（2026-05-22）：

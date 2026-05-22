@@ -40,8 +40,10 @@ type TwelveDataQuote = {
 type StooqQuote = {
   stooqSymbol: string;
   quoteSymbol: QuoteSymbol;
+  rawPrice: number;
   price: number;
   updatedAt: string;
+  snippet: string;
 };
 
 const MOCK_QUOTES: QuoteMap = {
@@ -88,9 +90,24 @@ export async function fetchMarketQuotes(): Promise<QuotePayload> {
 }
 
 async function fetchComexFuturesQuotes(): Promise<QuoteMap> {
-  const endpoint = new URL("https://stooq.pl/q/l/");
-  endpoint.searchParams.set("s", COMEX_FUTURES.map((item) => item.stooqSymbol).join(" "));
-  endpoint.searchParams.set("e", "xml");
+  const quotes: QuoteMap = {};
+
+  for (const contract of COMEX_FUTURES) {
+    const stooqQuote = await fetchStooqQuote(contract);
+    quotes[contract.quoteSymbol] = {
+      symbol: contract.quoteSymbol,
+      name: NAMES[contract.quoteSymbol],
+      price: stooqQuote.price,
+      updatedAt: stooqQuote.updatedAt
+    };
+  }
+
+  return quotes;
+}
+
+async function fetchStooqQuote(contract: (typeof COMEX_FUTURES)[number]): Promise<StooqQuote> {
+  const endpoint = new URL("https://stooq.com/q/a2/");
+  endpoint.searchParams.set("s", contract.stooqSymbol.toLowerCase());
 
   const response = await fetch(endpoint, {
     next: { revalidate: 0 }
@@ -99,30 +116,11 @@ async function fetchComexFuturesQuotes(): Promise<QuoteMap> {
   if (!response.ok) {
     const body = await readResponseBody(response);
     const detail = body ? `，Stooq 返回：${body}` : "";
-    throw new Error(`COMEX futures 延迟行情源请求失败：Stooq HTTP ${response.status}${detail}`);
+    throw new Error(`COMEX futures 延迟行情源请求失败：Stooq ${contract.stooqSymbol}/${contract.quoteSymbol} HTTP ${response.status}${detail}`);
   }
 
-  const xml = await response.text();
-  const stooqQuotes = parseStooqQuoteXml(xml);
-  const quotes: QuoteMap = {};
-
-  for (const contract of COMEX_FUTURES) {
-    const row = stooqQuotes.find((item) => item.stooqSymbol.toUpperCase() === contract.stooqSymbol.toUpperCase());
-    if (!row) {
-      throw new Error(`COMEX futures 延迟行情价格无效：${contract.stooqSymbol}/${contract.quoteSymbol}`);
-    }
-
-    const quote: Quote = {
-      symbol: contract.quoteSymbol,
-      name: NAMES[contract.quoteSymbol],
-      price: row.price,
-      updatedAt: row.updatedAt
-    };
-
-    quotes[contract.quoteSymbol] = quote;
-  }
-
-  return quotes;
+  const html = await response.text();
+  return parseStooqQuoteHtml(html, contract.stooqSymbol, contract.quoteSymbol);
 }
 
 async function readResponseBody(response: Response): Promise<string> {
@@ -267,55 +265,72 @@ function requireQuote(quotes: QuoteMap, symbol: QuoteSymbol): Quote {
   return quote;
 }
 
-export function parseStooqQuoteXml(xml: string): StooqQuote[] {
-  const quotes: StooqQuote[] = [];
-  const blocks = xml.matchAll(/<(?:symbol|quote)>\s*([\s\S]*?)\s*<\/(?:symbol|quote)>/gi);
+export function parseStooqQuoteHtml(html: string, stooqSymbol: "GC.F" | "SI.F", quoteSymbol: "GC" | "SI"): StooqQuote {
+  const text = htmlToText(html);
+  const symbolPattern = escapeRegExp(stooqSymbol);
+  const pagePattern = new RegExp(`(?:Gold|Silver)\\s*\\(${symbolPattern}\\)([\\s\\S]{0,180}?)(\\d{1,2}\\s+[^\\s,]+,\\s+\\d{1,2}:\\d{2})\\s+([0-9]+(?:[.,][0-9]+)?)`, "i");
+  const pageMatch = text.match(pagePattern);
 
-  for (const block of blocks) {
-    const body = block[1];
-    const stooqSymbol = readXmlTag(body, "id") ?? readXmlTag(body, "symbol");
-    const close = readXmlTag(body, "close");
-    const date = readXmlTag(body, "date");
-    const time = readXmlTag(body, "time");
-    const price = close === null ? Number.NaN : Number(close);
-
-    if (!stooqSymbol || !Number.isFinite(price) || price <= 0) {
-      continue;
-    }
-
-    const contract = COMEX_FUTURES.find((item) => item.stooqSymbol.toUpperCase() === stooqSymbol.toUpperCase());
-    if (!contract) {
-      continue;
-    }
-
-    quotes.push({
-      stooqSymbol,
-      quoteSymbol: contract.quoteSymbol,
-      price,
-      updatedAt: formatStooqUpdatedAt(date, time)
-    });
+  if (pageMatch) {
+    const rawPrice = parseStooqNumber(pageMatch[3]);
+    return buildStooqQuote(stooqSymbol, quoteSymbol, rawPrice, pageMatch[2], pageMatch[0]);
   }
 
-  return quotes;
-}
+  const mainPattern = new RegExp(`${symbolPattern}\\s+(?:GOLD|SILVER)\\s*([0-9]+(?:[.,][0-9]+)?)`, "i");
+  const mainMatch = text.match(mainPattern);
 
-function readXmlTag(body: string, tag: string): string | null {
-  const match = body.match(new RegExp(`<${tag}>\\s*([^<]+?)\\s*<\\/${tag}>`, "i"));
-  return match?.[1]?.trim() ?? null;
-}
-
-function formatStooqUpdatedAt(date: string | null, time: string | null): string {
-  if (!date || !/^\d{8}$/.test(date)) {
-    return new Date().toISOString();
+  if (mainMatch) {
+    const rawPrice = parseStooqNumber(mainMatch[1]);
+    return buildStooqQuote(stooqSymbol, quoteSymbol, rawPrice, new Date().toISOString(), mainMatch[0]);
   }
 
-  const normalizedTime = time && /^\d{6}$/.test(time) ? time : "000000";
-  const year = date.slice(0, 4);
-  const month = date.slice(4, 6);
-  const day = date.slice(6, 8);
-  const hour = normalizedTime.slice(0, 2);
-  const minute = normalizedTime.slice(2, 4);
-  const second = normalizedTime.slice(4, 6);
+  throw new Error(`Stooq 页面解析失败：${stooqSymbol}/${quoteSymbol}，原始片段：${createDiagnosticSnippet(text, stooqSymbol)}`);
+}
 
-  return `${year}-${month}-${day}T${hour}:${minute}:${second}+01:00`;
+function buildStooqQuote(
+  stooqSymbol: "GC.F" | "SI.F",
+  quoteSymbol: "GC" | "SI",
+  rawPrice: number,
+  updatedAt: string,
+  snippet: string
+): StooqQuote {
+  if (!Number.isFinite(rawPrice) || rawPrice <= 0) {
+    throw new Error(`Stooq 页面解析到无效价格：${stooqSymbol}/${quoteSymbol}，原始片段：${sanitizeDiagnosticText(snippet)}`);
+  }
+
+  return {
+    stooqSymbol,
+    quoteSymbol,
+    rawPrice,
+    price: quoteSymbol === "SI" && rawPrice > 1000 ? rawPrice / 100 : rawPrice,
+    updatedAt,
+    snippet: sanitizeDiagnosticText(snippet)
+  };
+}
+
+function htmlToText(html: string): string {
+  return html
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;|&#160;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function parseStooqNumber(value: string): number {
+  return Number(value.replace(",", "."));
+}
+
+function createDiagnosticSnippet(text: string, stooqSymbol: string): string {
+  const index = text.toUpperCase().indexOf(stooqSymbol.toUpperCase());
+  if (index >= 0) {
+    return sanitizeDiagnosticText(text.slice(Math.max(0, index - 80), index + 220));
+  }
+  return sanitizeDiagnosticText(text.slice(0, 240));
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
