@@ -22,11 +22,7 @@ export function PointInput({ metal, points, recognizedCount, ignoredCount, onPoi
   return (
     <section className="border-t border-line py-6">
       <div className="mb-4 flex items-start justify-between gap-3">
-        <div>
-          <p className={`text-xs font-semibold uppercase tracking-[0.18em] ${accent}`}>COMEX</p>
-          <h2 className="mt-1 text-xl font-semibold text-white">{label}</h2>
-          <p className="mt-1 text-sm text-silver">支持换行、空格、逗号、顿号分隔。</p>
-        </div>
+        <h2 className="text-xl font-semibold text-white">{label}</h2>
         {points ? (
           <button
             type="button"

@@ -207,9 +207,7 @@ function ResultList({
 }) {
   if (orders.length === 0) {
     return (
-      <div className="mb-2 rounded-md border border-line bg-panel px-4 py-5 text-sm text-silver">
-        输入点位并成功加载行情后，自动显示换算结果。
-      </div>
+      null
     );
   }
 
