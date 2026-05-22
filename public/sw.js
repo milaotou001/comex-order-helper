@@ -1,9 +1,6 @@
-const CACHE = "comex-v1";
+const CACHE = "comex-v2";
 
-self.addEventListener("install", (event) => {
-  event.waitUntil(
-    caches.open(CACHE).then((cache) => cache.add("/"))
-  );
+self.addEventListener("install", () => {
   self.skipWaiting();
 });
 
@@ -17,17 +14,31 @@ self.addEventListener("activate", (event) => {
 });
 
 self.addEventListener("fetch", (event) => {
-  if (event.request.method !== "GET") return;
+  const url = new URL(event.request.url);
+  if (url.origin !== self.location.origin || event.request.method !== "GET") return;
 
+  // navigation → network first, cache fallback
+  if (event.request.mode === "navigate") {
+    event.respondWith(
+      fetch(event.request)
+        .then((res) => {
+          caches.open(CACHE).then((c) => c.put(event.request, res.clone()));
+          return res;
+        })
+        .catch(() => caches.match(event.request))
+    );
+    return;
+  }
+
+  // static assets → cache first, network fallback
   event.respondWith(
     caches.match(event.request).then((cached) => {
-      const fetched = fetch(event.request).then((response) => {
-        if (response.ok) {
-          const clone = response.clone();
-          caches.open(CACHE).then((cache) => cache.put(event.request, clone));
+      const fetched = fetch(event.request).then((res) => {
+        if (res.ok) {
+          caches.open(CACHE).then((c) => c.put(event.request, res.clone()));
         }
-        return response;
-      });
+        return res;
+      }).catch(() => cached);
 
       return cached || fetched;
     })
