@@ -9,6 +9,9 @@ const DEFAULT_ETF_SYMBOLS: Record<(typeof ETF_SYMBOLS)[number], string> = {
   AGQ: "AGQ"
 };
 
+const ETF_CACHE_TTL_MS = 5 * 60 * 1000;
+let etfCache: { quotes: QuoteMap; timestamp: number } | null = null;
+
 const COMEX_FUTURES = [
   {
     quoteSymbol: "GC",
@@ -266,6 +269,10 @@ async function fetchEtfQuotes(): Promise<QuoteMap> {
 }
 
 async function fetchEtfQuotesWithRetry(): Promise<QuoteMap> {
+  if (etfCache && Date.now() - etfCache.timestamp < ETF_CACHE_TTL_MS) {
+    return etfCache.quotes;
+  }
+
   let etfQuotes: QuoteMap = {};
   try {
     etfQuotes = await fetchEtfQuotes();
@@ -274,18 +281,24 @@ async function fetchEtfQuotesWithRetry(): Promise<QuoteMap> {
   }
 
   const missing = ETF_SYMBOLS.filter((s) => !etfQuotes[s]);
-  if (missing.length === 0) {
-    return etfQuotes;
+  if (missing.length > 0) {
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+
+    try {
+      const retryQuotes = await fetchEtfQuotes();
+      etfQuotes = { ...etfQuotes, ...retryQuotes };
+    } catch {
+      // keep partial data
+    }
   }
 
-  await new Promise((resolve) => setTimeout(resolve, 2000));
-
-  try {
-    const retryQuotes = await fetchEtfQuotes();
-    return { ...etfQuotes, ...retryQuotes };
-  } catch {
-    return etfQuotes;
+  if (ETF_SYMBOLS.every((s) => etfQuotes[s])) {
+    etfCache = { quotes: etfQuotes, timestamp: Date.now() };
+  } else if (etfCache) {
+    etfQuotes = { ...etfCache.quotes, ...etfQuotes };
   }
+
+  return etfQuotes;
 }
 
 function mockPayload(reason: string): QuotePayload {
