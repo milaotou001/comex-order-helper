@@ -35,15 +35,12 @@ export type QuotePayload = {
   error?: string;
 };
 
-export type CopyPriceType = "standard" | "easy" | "bargain";
-
 export type OrderSettings = {
   easyPercent: number;
   bargainPercent: number;
   refreshIntervalMinutes: number;
   showLeveraged: boolean;
   decimals: number;
-  copyPriceType: CopyPriceType;
 };
 
 export type RiskLevel = "normal" | "warning" | "danger";

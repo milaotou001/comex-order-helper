@@ -1,4 +1,4 @@
-import type { ConvertedOrder, CopyPriceType } from "./types";
+import type { ConvertedOrder } from "./types";
 
 export function formatPrice(value: number, decimals = 2): string {
   return value.toLocaleString("en-US", {
@@ -21,31 +21,13 @@ export function buildCopyLine(order: ConvertedOrder, decimals = 2): string {
 
   return [
     `${metalLabel} ${formatPoint(order.point)}`,
-    `${order.plainSymbol}标准 ${formatPrice(order.standardPrice, decimals)}`,
-    `${order.plainSymbol}容易成交 ${formatPrice(order.easyPrice, decimals)}`,
-    `${order.plainSymbol}捡漏 ${formatPrice(order.bargainPrice, decimals)}`,
+    `${order.plainSymbol}挂单 ${formatPrice(order.easyPrice, decimals)}`,
+    `按标准价上浮`,
     `${order.leveragedSymbol}参考 ${formatPrice(order.leveragedPrice, decimals)}`,
     `距当前 ${formatPercent(order.distancePercent)}`
   ].join("｜");
 }
 
-export function getSelectedPlainPrice(order: ConvertedOrder, type: CopyPriceType): number {
-  switch (type) {
-    case "easy":
-      return order.easyPrice;
-    case "bargain":
-      return order.bargainPrice;
-    default:
-      return order.standardPrice;
-  }
-}
-
-const COPY_TYPE_LABELS: Record<CopyPriceType, string> = {
-  standard: "标准价",
-  easy: "容易成交价",
-  bargain: "捡漏价"
-};
-
-export function getCopyTypeLabel(type: CopyPriceType): string {
-  return COPY_TYPE_LABELS[type];
+export function getMainOrderPrice(order: ConvertedOrder): number {
+  return order.easyPrice;
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import type { QuoteMap } from "@/lib/types";
-import { formatPercent, formatPrice } from "@/lib/format";
+import { formatPrice } from "@/lib/format";
 
 type QuotePanelProps = {
   quotes: QuoteMap;
@@ -15,8 +15,10 @@ type QuotePanelProps = {
 const ORDER = ["GC", "SI", "IAU", "UGL", "SLV", "AGQ"] as const;
 
 export function QuotePanel({ quotes, updatedAt, error, loading, onRefresh, isMock }: QuotePanelProps) {
+  const updatedLabel = updatedAt ? formatUpdatedDistance(updatedAt) : "暂无";
+
   return (
-    <section className="py-5">
+    <section className="py-4">
       <div className="mb-3 flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <h2 className="text-lg font-semibold text-white">当前行情</h2>
@@ -36,31 +38,50 @@ export function QuotePanel({ quotes, updatedAt, error, loading, onRefresh, isMoc
         </button>
       </div>
 
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-        {ORDER.map((symbol) => {
-          const quote = quotes[symbol];
-          return (
-            <div key={symbol} className="rounded-md border border-line bg-panel p-3">
-              <div className="mb-2 flex items-center justify-between gap-2">
-                <span className="text-sm text-silver">{quote?.name ?? symbol}</span>
-                {quote?.changePercent !== undefined ? (
-                  <span className={quote.changePercent >= 0 ? "text-xs text-gold" : "text-xs text-danger"}>
-                    {formatPercent(quote.changePercent)}
-                  </span>
-                ) : null}
-              </div>
-              <div className="font-mono text-xl text-white">
-                {quote ? formatPrice(quote.price, symbol === "GC" || symbol === "SI" ? 2 : 2) : "--"}
-              </div>
-            </div>
-          );
-        })}
+      <div className="rounded-md border border-line bg-panel p-3">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+          <QuoteText label="GC" value={quotes.GC?.price} strong />
+          <QuoteText label="SI" value={quotes.SI?.price} strong />
+          <span className={isMock ? "text-amber" : "text-gold"}>{isMock ? "mock" : "真实"}</span>
+          <span className="text-silver">更新 {updatedLabel}</span>
+        </div>
+        <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-silver">
+          {ORDER.filter((symbol) => symbol !== "GC" && symbol !== "SI").map((symbol) => (
+            <QuoteText key={symbol} label={symbol} value={quotes[symbol]?.price} />
+          ))}
+        </div>
       </div>
 
       <div className="mt-3 flex flex-col gap-2 text-xs text-silver/75 sm:flex-row sm:items-center sm:justify-between">
-        <span>更新时间：{updatedAt ? new Date(updatedAt).toLocaleString("zh-CN") : "暂无"}</span>
         {error ? <span className="text-amber">{error}</span> : null}
       </div>
     </section>
   );
+}
+
+function QuoteText({ label, value, strong = false }: { label: string; value?: number; strong?: boolean }) {
+  return (
+    <span className={strong ? "font-mono text-base text-white" : "font-mono"}>
+      {label} {value ? formatPrice(value, 2) : "--"}
+    </span>
+  );
+}
+
+function formatUpdatedDistance(updatedAt: string): string {
+  const timestamp = new Date(updatedAt).getTime();
+  if (!Number.isFinite(timestamp)) {
+    return "暂无";
+  }
+
+  const seconds = Math.max(0, Math.floor((Date.now() - timestamp) / 1000));
+  if (seconds < 60) {
+    return `${seconds}秒前`;
+  }
+
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) {
+    return `${minutes}分钟前`;
+  }
+
+  return new Date(updatedAt).toLocaleString("zh-CN");
 }

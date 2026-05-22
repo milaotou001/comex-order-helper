@@ -1,65 +1,39 @@
 "use client";
 
-import type { CopyPriceType, OrderSettings } from "@/lib/types";
-import { getCopyTypeLabel } from "@/lib/format";
+import { useState } from "react";
+import type { OrderSettings } from "@/lib/types";
 
 type SettingsPanelProps = {
   settings: OrderSettings;
   onChange: (settings: OrderSettings) => void;
 };
 
-const COPY_OPTIONS: { value: CopyPriceType; short: string }[] = [
-  { value: "standard", short: "标准价" },
-  { value: "easy", short: "容易成交价" },
-  { value: "bargain", short: "捡漏价" }
-];
-
 export function SettingsPanel({ settings, onChange }: SettingsPanelProps) {
+  const [open, setOpen] = useState(false);
+
   return (
     <section className="border-t border-line py-6">
-      <h2 className="mb-4 text-lg font-semibold text-white">设置</h2>
-
-      <div className="mb-5 rounded-md border border-gold/60 bg-gold/8 p-4">
-        <p className="mb-3 text-sm font-semibold text-gold">当前复制价格类型</p>
-        <div className="flex flex-wrap gap-2">
-          {COPY_OPTIONS.map((option) => {
-            const active = settings.copyPriceType === option.value;
-            return (
-              <button
-                key={option.value}
-                type="button"
-                onClick={() => onChange({ ...settings, copyPriceType: option.value })}
-                className={`rounded-md border px-4 py-2 text-sm font-semibold transition ${
-                  active
-                    ? "border-gold bg-gold text-ink"
-                    : "border-line bg-panel text-silver hover:border-gold/50 hover:text-white"
-                }`}
-              >
-                {active ? `✓ ${option.short}` : option.short}
-              </button>
-            );
-          })}
+      <button
+        type="button"
+        onClick={() => setOpen((current) => !current)}
+        className="flex w-full items-center justify-between gap-3 rounded-md border border-line bg-panel px-4 py-3 text-left"
+      >
+        <div>
+          <h2 className="text-lg font-semibold text-white">设置</h2>
+          <p className="mt-1 text-xs text-silver">
+            挂单上浮 +{settings.easyPercent.toFixed(2)}% ｜ 小数 {settings.decimals} ｜ 杠杆 {settings.showLeveraged ? "开" : "关"}
+          </p>
         </div>
-        <p className="mt-3 text-xs leading-5 text-silver/80">
-          点击"复制 IAU / SLV 挂单价"时将复制：<span className="font-semibold text-white">{getCopyTypeLabel(settings.copyPriceType)}</span>。
-          杠杆 ETF 参考价不区分三档，始终复制单一定价。
-        </p>
-      </div>
+        <span className="text-sm text-gold">{open ? "收起" : "展开"}</span>
+      </button>
 
-      <div className="grid gap-3 sm:grid-cols-2">
+      {open ? <div className="mt-4 grid gap-3 sm:grid-cols-2">
         <NumberSetting
-          label="容易成交上浮%"
+          label="挂单上浮%"
           value={settings.easyPercent}
           min={0}
           step={0.05}
           onChange={(easyPercent) => onChange({ ...settings, easyPercent })}
-        />
-        <NumberSetting
-          label="捡漏下浮%"
-          value={settings.bargainPercent}
-          min={0}
-          step={0.05}
-          onChange={(bargainPercent) => onChange({ ...settings, bargainPercent })}
         />
         <NumberSetting
           label="刷新间隔(分钟)"
@@ -76,9 +50,9 @@ export function SettingsPanel({ settings, onChange }: SettingsPanelProps) {
           step={1}
           onChange={(decimals) => onChange({ ...settings, decimals: Math.round(decimals) })}
         />
-      </div>
+      </div> : null}
 
-      <label className="mt-4 flex items-center justify-between rounded-md border border-line bg-panel px-3 py-3 text-sm text-silver">
+      {open ? <label className="mt-4 flex items-center justify-between rounded-md border border-line bg-panel px-3 py-3 text-sm text-silver">
         <span>显示 UGL / AGQ</span>
         <input
           type="checkbox"
@@ -86,7 +60,7 @@ export function SettingsPanel({ settings, onChange }: SettingsPanelProps) {
           onChange={(event) => onChange({ ...settings, showLeveraged: event.target.checked })}
           className="h-5 w-5 accent-gold"
         />
-      </label>
+      </label> : null}
     </section>
   );
 }

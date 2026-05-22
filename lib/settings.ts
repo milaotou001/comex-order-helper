@@ -5,6 +5,5 @@ export const DEFAULT_SETTINGS: OrderSettings = {
   bargainPercent: 0.3,
   refreshIntervalMinutes: 0,
   showLeveraged: true,
-  decimals: 2,
-  copyPriceType: "standard"
+  decimals: 2
 };
