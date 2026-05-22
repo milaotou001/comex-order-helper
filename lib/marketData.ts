@@ -80,7 +80,7 @@ export async function fetchMarketQuotes(): Promise<QuotePayload> {
     return {
       quotes,
       items: buildItems(quotes),
-      updatedAt: new Date().toISOString(),
+      updatedAt: comexQuotes.GC?.updatedAt ?? new Date().toISOString(),
       source: "mixed",
       sources: {
         comex: "sina",
