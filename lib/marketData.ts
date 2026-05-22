@@ -90,26 +90,45 @@ export async function fetchMarketQuotes(): Promise<QuotePayload> {
 }
 
 async function fetchComexFuturesQuotes(): Promise<QuoteMap> {
+  const results = await Promise.all(
+    COMEX_FUTURES.map(async (contract) => {
+      const stooqQuote = await fetchStooqQuote(contract);
+      return {
+        symbol: contract.quoteSymbol,
+        quote: {
+          symbol: contract.quoteSymbol,
+          name: NAMES[contract.quoteSymbol],
+          price: stooqQuote.price,
+          updatedAt: stooqQuote.updatedAt
+        } as Quote
+      };
+    })
+  );
+
   const quotes: QuoteMap = {};
-
-  for (const contract of COMEX_FUTURES) {
-    const stooqQuote = await fetchStooqQuote(contract);
-    quotes[contract.quoteSymbol] = {
-      symbol: contract.quoteSymbol,
-      name: NAMES[contract.quoteSymbol],
-      price: stooqQuote.price,
-      updatedAt: stooqQuote.updatedAt
-    };
+  for (const { symbol, quote } of results) {
+    quotes[symbol] = quote;
   }
-
   return quotes;
+}
+
+const FETCH_TIMEOUT_MS = 15000;
+
+async function fetchWithTimeout(url: URL, options?: RequestInit): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 async function fetchStooqQuote(contract: (typeof COMEX_FUTURES)[number]): Promise<StooqQuote> {
   const endpoint = new URL("https://stooq.com/q/a2/");
   endpoint.searchParams.set("s", contract.stooqSymbol.toLowerCase());
 
-  const response = await fetch(endpoint, {
+  const response = await fetchWithTimeout(endpoint, {
     next: { revalidate: 0 }
   });
 
@@ -156,7 +175,7 @@ async function fetchEtfQuotes(): Promise<QuoteMap> {
   endpoint.searchParams.set("symbol", Object.values(symbols).join(","));
   endpoint.searchParams.set("apikey", apiKey);
 
-  const response = await fetch(endpoint, {
+  const response = await fetchWithTimeout(endpoint, {
     next: { revalidate: 0 }
   });
 

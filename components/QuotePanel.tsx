@@ -38,32 +38,37 @@ export function QuotePanel({ quotes, updatedAt, error, loading, onRefresh, isMoc
         </button>
       </div>
 
-      <div className="rounded-md border border-line bg-panel p-3">
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
-          <QuoteText label="GC" value={quotes.GC?.price} strong />
-          <QuoteText label="SI" value={quotes.SI?.price} strong />
-          <span className={isMock ? "text-amber" : "text-gold"}>{isMock ? "mock" : "真实"}</span>
-          <span className="text-silver">更新 {updatedLabel}</span>
-        </div>
-        <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-silver">
-          {ORDER.filter((symbol) => symbol !== "GC" && symbol !== "SI").map((symbol) => (
-            <QuoteText key={symbol} label={symbol} value={quotes[symbol]?.price} />
-          ))}
-        </div>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+        {ORDER.map((symbol) => {
+          const quote = quotes[symbol];
+          const isComex = symbol === "GC" || symbol === "SI";
+          return (
+            <div
+              key={symbol}
+              className={`rounded-md border bg-panel p-3 ${
+                isComex ? "border-gold/30" : "border-line"
+              }`}
+            >
+              <p className={`text-xs ${isComex ? "text-gold" : "text-silver"}`}>
+                {quote?.name ?? symbol}
+              </p>
+              <p className={`mt-1 font-mono text-lg ${isComex ? "text-white" : "text-silver"}`}>
+                {quote ? formatPrice(quote.price, 2) : "--"}
+              </p>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="mt-2 flex items-center gap-x-3 text-xs">
+        <span className={isMock ? "text-amber" : "text-gold"}>{isMock ? "mock" : "真实"}</span>
+        <span className="text-silver">更新 {updatedLabel}</span>
       </div>
 
       <div className="mt-3 flex flex-col gap-2 text-xs text-silver/75 sm:flex-row sm:items-center sm:justify-between">
         {error ? <span className="text-amber">{error}</span> : null}
       </div>
     </section>
-  );
-}
-
-function QuoteText({ label, value, strong = false }: { label: string; value?: number; strong?: boolean }) {
-  return (
-    <span className={strong ? "font-mono text-base text-white" : "font-mono"}>
-      {label} {value ? formatPrice(value, 2) : "--"}
-    </span>
   );
 }
 
