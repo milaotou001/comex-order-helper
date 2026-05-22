@@ -64,7 +64,7 @@ export async function fetchMarketQuotes(): Promise<QuotePayload> {
   try {
     const [comexQuotes, etfQuotes] = await Promise.all([
       fetchComexFuturesQuotes(),
-      fetchEtfQuotes()
+      fetchEtfQuotesWithRetry()
     ]);
 
     const quotes: QuoteMap = {
@@ -263,6 +263,29 @@ async function fetchEtfQuotes(): Promise<QuoteMap> {
 
   const raw = await response.json();
   return normalizeEtfQuotes(raw, symbols, new Date().toISOString());
+}
+
+async function fetchEtfQuotesWithRetry(): Promise<QuoteMap> {
+  let etfQuotes: QuoteMap = {};
+  try {
+    etfQuotes = await fetchEtfQuotes();
+  } catch {
+    // fall through to retry
+  }
+
+  const missing = ETF_SYMBOLS.filter((s) => !etfQuotes[s]);
+  if (missing.length === 0) {
+    return etfQuotes;
+  }
+
+  await new Promise((resolve) => setTimeout(resolve, 2000));
+
+  try {
+    const retryQuotes = await fetchEtfQuotes();
+    return { ...etfQuotes, ...retryQuotes };
+  } catch {
+    return etfQuotes;
+  }
 }
 
 function mockPayload(reason: string): QuotePayload {
