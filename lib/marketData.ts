@@ -20,6 +20,11 @@ const COMEX_FUTURES = [
   }
 ] as const;
 
+const SINA_COMEX_SYMBOLS: Record<string, string> = {
+  GC: "hf_GC",
+  SI: "hf_SI"
+};
+
 const NAMES: Record<QuoteSymbol, string> = {
   GC: "COMEX黄金",
   SI: "COMEX白银",
@@ -78,7 +83,7 @@ export async function fetchMarketQuotes(): Promise<QuotePayload> {
       updatedAt: new Date().toISOString(),
       source: "mixed",
       sources: {
-        comex: "stooq",
+        comex: "sina",
         etf: "twelvedata"
       },
       isMock: false
@@ -90,6 +95,62 @@ export async function fetchMarketQuotes(): Promise<QuotePayload> {
 }
 
 async function fetchComexFuturesQuotes(): Promise<QuoteMap> {
+  try {
+    return await fetchSinaComexQuotes();
+  } catch (sinaError) {
+    try {
+      return await fetchStooqComexQuotes();
+    } catch {
+      throw sinaError;
+    }
+  }
+}
+
+async function fetchSinaComexQuotes(): Promise<QuoteMap> {
+  const symbols = Object.values(SINA_COMEX_SYMBOLS).join(",");
+  const endpoint = new URL("https://hq.sinajs.cn/list=" + symbols);
+
+  const response = await fetchWithTimeout(endpoint, {
+    headers: { Referer: "https://finance.sina.com.cn" }
+  });
+
+  if (!response.ok) {
+    throw new Error(`新浪财经行情请求失败：HTTP ${response.status}`);
+  }
+
+  const text = await response.text();
+  const quotes: QuoteMap = {};
+
+  for (const [quoteSymbol, sinaSymbol] of Object.entries(SINA_COMEX_SYMBOLS) as Array<[QuoteSymbol, string]>) {
+    const price = parseSinaQuoteLine(text, sinaSymbol);
+    quotes[quoteSymbol] = {
+      symbol: quoteSymbol,
+      name: NAMES[quoteSymbol],
+      price,
+      updatedAt: new Date().toISOString()
+    };
+  }
+
+  return quotes;
+}
+
+function parseSinaQuoteLine(text: string, sinaSymbol: string): number {
+  const pattern = new RegExp(`hq_str_${escapeRegExp(sinaSymbol)}="([^"]*)"`);
+  const match = text.match(pattern);
+  if (!match) {
+    throw new Error(`新浪财经未返回 ${sinaSymbol} 数据`);
+  }
+
+  const fields = match[1].split(",");
+  const price = Number(fields[0]);
+  if (!Number.isFinite(price) || price <= 0) {
+    throw new Error(`新浪财经 ${sinaSymbol} 价格无效：${fields[0]}`);
+  }
+
+  return price;
+}
+
+async function fetchStooqComexQuotes(): Promise<QuoteMap> {
   const results = await Promise.all(
     COMEX_FUTURES.map(async (contract) => {
       const stooqQuote = await fetchStooqQuote(contract);
