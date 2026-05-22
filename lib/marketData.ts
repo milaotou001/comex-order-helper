@@ -12,11 +12,11 @@ const DEFAULT_ETF_SYMBOLS: Record<(typeof ETF_SYMBOLS)[number], string> = {
 const COMEX_FUTURES = [
   {
     quoteSymbol: "GC",
-    commodityName: "gold"
+    yahooSymbol: "GC=F"
   },
   {
     quoteSymbol: "SI",
-    commodityName: "silver"
+    yahooSymbol: "SI=F"
   }
 ] as const;
 
@@ -29,19 +29,25 @@ const NAMES: Record<QuoteSymbol, string> = {
   AGQ: "AGQ"
 };
 
-type ApiNinjasCommodity = {
-  exchange?: string;
-  name?: string;
-  price?: number | string;
-  updated?: number | string;
-};
-
 type TwelveDataQuote = {
   symbol: string;
   close?: string;
   price?: string;
   percent_change?: string;
   datetime?: string;
+};
+
+type YahooFinanceQuote = {
+  symbol?: string;
+  regularMarketPrice?: number;
+  regularMarketChangePercent?: number;
+  regularMarketTime?: number;
+};
+
+type YahooFinanceResponse = {
+  quoteResponse?: {
+    result?: YahooFinanceQuote[];
+  };
 };
 
 const MOCK_QUOTES: QuoteMap = {
@@ -76,7 +82,7 @@ export async function fetchMarketQuotes(): Promise<QuotePayload> {
       updatedAt: new Date().toISOString(),
       source: "mixed",
       sources: {
-        comex: "api-ninjas",
+        comex: "yahoo-finance",
         etf: "twelvedata"
       },
       isMock: false
@@ -88,55 +94,46 @@ export async function fetchMarketQuotes(): Promise<QuotePayload> {
 }
 
 async function fetchComexFuturesQuotes(): Promise<QuoteMap> {
-  const provider = process.env.COMMODITY_DATA_PROVIDER ?? "api-ninjas";
-  const apiKey = process.env.COMMODITY_DATA_API_KEY;
-
-  if (provider !== "api-ninjas") {
-    throw new Error("COMEX futures 源未配置为 api-ninjas");
-  }
-
-  if (!apiKey) {
-    throw new Error("未配置 COMMODITY_DATA_API_KEY，COMEX futures 源不可用");
-  }
-
-  const quotes = await Promise.all(COMEX_FUTURES.map(fetchApiNinjasCommodity));
-
-  return quotes.reduce<QuoteMap>((quoteMap, quote) => {
-    quoteMap[quote.symbol] = quote;
-    return quoteMap;
-  }, {});
-}
-
-async function fetchApiNinjasCommodity(commodity: (typeof COMEX_FUTURES)[number]): Promise<Quote> {
-  const apiKey = process.env.COMMODITY_DATA_API_KEY;
-  const endpoint = new URL("https://api.api-ninjas.com/v1/commodityprice");
-  endpoint.searchParams.set("name", commodity.commodityName);
+  const endpoint = new URL("https://query1.finance.yahoo.com/v7/finance/quote");
+  endpoint.searchParams.set("symbols", COMEX_FUTURES.map((item) => item.yahooSymbol).join(","));
 
   const response = await fetch(endpoint, {
-    headers: {
-      "X-Api-Key": apiKey ?? ""
-    },
     next: { revalidate: 0 }
   });
 
   if (!response.ok) {
     const body = await readResponseBody(response);
-    const detail = body ? `，API-Ninjas 返回：${body}` : "";
-    throw new Error(`COMEX futures 源请求失败：${commodity.commodityName}/${commodity.quoteSymbol} HTTP ${response.status}${detail}`);
+    const detail = body ? `，Yahoo Finance 返回：${body}` : "";
+    throw new Error(`COMEX futures 延迟行情源请求失败：HTTP ${response.status}${detail}`);
   }
 
-  const raw = await response.json() as ApiNinjasCommodity;
-  const price = Number(raw.price);
-  if (!Number.isFinite(price) || price <= 0) {
-    throw new Error(`COMEX futures 源价格无效：${commodity.commodityName}/${commodity.quoteSymbol}`);
+  const raw = await response.json() as YahooFinanceResponse;
+  const rows = raw.quoteResponse?.result ?? [];
+  const quotes: QuoteMap = {};
+
+  for (const contract of COMEX_FUTURES) {
+    const row = rows.find((item) => item.symbol === contract.yahooSymbol);
+    const price = Number(row?.regularMarketPrice);
+    if (!row || !Number.isFinite(price) || price <= 0) {
+      throw new Error(`COMEX futures 延迟行情价格无效：${contract.yahooSymbol}/${contract.quoteSymbol}`);
+    }
+
+    const quote: Quote = {
+      symbol: contract.quoteSymbol,
+      name: NAMES[contract.quoteSymbol],
+      price,
+      updatedAt: formatYahooUpdatedAt(row.regularMarketTime)
+    };
+
+    const changePercent = Number(row.regularMarketChangePercent);
+    if (Number.isFinite(changePercent)) {
+      quote.changePercent = changePercent;
+    }
+
+    quotes[contract.quoteSymbol] = quote;
   }
 
-  return {
-    symbol: commodity.quoteSymbol,
-    name: NAMES[commodity.quoteSymbol],
-    price,
-    updatedAt: formatApiNinjasUpdatedAt(raw.updated)
-  };
+  return quotes;
 }
 
 async function readResponseBody(response: Response): Promise<string> {
@@ -281,18 +278,9 @@ function requireQuote(quotes: QuoteMap, symbol: QuoteSymbol): Quote {
   return quote;
 }
 
-function formatApiNinjasUpdatedAt(value: ApiNinjasCommodity["updated"]): string {
+function formatYahooUpdatedAt(value: YahooFinanceQuote["regularMarketTime"]): string {
   if (typeof value === "number" && Number.isFinite(value)) {
-    const milliseconds = value > 10_000_000_000 ? value : value * 1000;
-    return new Date(milliseconds).toISOString();
-  }
-
-  if (typeof value === "string" && value) {
-    const numeric = Number(value);
-    if (Number.isFinite(numeric)) {
-      return formatApiNinjasUpdatedAt(numeric);
-    }
-    return value;
+    return new Date(value * 1000).toISOString();
   }
 
   return new Date().toISOString();

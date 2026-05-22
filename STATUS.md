@@ -2,13 +2,22 @@
 
 > 日常开发状态文件。每任务简短更新。阶段交接信息见 CURRENT.md（如存在）。
 
-当前任务：MVP-1 API-Ninjas COMEX futures 诊断增强完成，等待真实接口复验
+当前任务：MVP-1b Yahoo Finance 延迟 COMEX 行情接入完成，等待真实接口复验
 当前执行者：Codex
-最近提交：fix: improve api-ninjas commodity diagnostics
+最近提交：feat: use yahoo finance delayed comex quotes
 下一步：
-1. 运行 npm run check:api-ninjas 查看 gold / silver / micro_silver 返回体
-2. 配置 COMMODITY_DATA_API_KEY 与 MARKET_DATA_API_KEY 后重新调用 /api/quotes
+1. 配置 MARKET_DATA_API_KEY 后重新调用 /api/quotes
 2. 阶段结束前进行一次技术复核
+MVP-1b 完成记录（2026-05-22）：
+- COMEX 黄金、COMEX 白银改用 Yahoo Finance 延迟期货行情：GC=F、SI=F
+- ETF 继续使用 Twelve Data：IAU、UGL、SLV、AGQ
+- /api/quotes 保持统一聚合输出，真实行情 source: "mixed"，sources.comex: "yahoo-finance"
+- Yahoo Finance 或 Twelve Data 任一源失败时整套 fallback 到 mock，并返回 warning
+- README 与页面风险提示已说明 Yahoo Finance 为延迟行情，不适合实时交易或高频交易
+验证记录（2026-05-22 MVP-1b）：
+- npm test: 3 files, 12 tests, all passed
+- npm run build: 3 routes compiled
+- git diff --check: passed
 MVP-1 诊断增强记录（2026-05-21）：
 - API-Ninjas 非 2xx 响应会读取 response body，并写入 warning/error
 - 新增 npm run check:api-ninjas，独立检查 gold / silver / micro_silver

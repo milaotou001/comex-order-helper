@@ -27,7 +27,7 @@ export type QuotePayload = {
   updatedAt: string | null;
   source: "mixed" | "mock";
   sources?: {
-    comex: "api-ninjas";
+    comex: "yahoo-finance";
     etf: "twelvedata";
   };
   isMock: boolean;

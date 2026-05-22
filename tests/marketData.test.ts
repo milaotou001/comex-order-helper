@@ -9,20 +9,7 @@ describe("marketData", () => {
     process.env = { ...ORIGINAL_ENV };
   });
 
-  it("returns mock payload when COMEX futures API key is not configured", async () => {
-    delete process.env.COMMODITY_DATA_API_KEY;
-    process.env.MARKET_DATA_API_KEY = "test-etf-key";
-
-    const payload = await fetchMarketQuotes();
-
-    expect(payload.source).toBe("mock");
-    expect(payload.isMock).toBe(true);
-    expect(payload.warning).toContain("COMMODITY_DATA_API_KEY");
-    expect(payload.items?.comexGold.price).toBeGreaterThan(0);
-  });
-
   it("returns mock payload when ETF API key is not configured", async () => {
-    process.env.COMMODITY_DATA_API_KEY = "test-comex-key";
     delete process.env.MARKET_DATA_API_KEY;
 
     const payload = await fetchMarketQuotes();
@@ -33,19 +20,21 @@ describe("marketData", () => {
     expect(payload.items?.IAU.price).toBeGreaterThan(0);
   });
 
-  it("returns mixed payload when API-Ninjas futures and Twelve Data ETFs both succeed", async () => {
-    process.env.COMMODITY_DATA_API_KEY = "test-comex-key";
+  it("returns mixed payload when Yahoo Finance futures and Twelve Data ETFs both succeed", async () => {
     process.env.MARKET_DATA_API_KEY = "test-etf-key";
 
     vi.stubGlobal("fetch", vi.fn(async (input: URL | RequestInfo) => {
       const url = input.toString();
 
-      if (url.includes("api.api-ninjas.com") && url.includes("name=gold")) {
-        return jsonResponse({ name: "Gold Futures", exchange: "CME", price: 4601.5, updated: 1_779_343_200 });
-      }
-
-      if (url.includes("api.api-ninjas.com") && url.includes("name=silver")) {
-        return jsonResponse({ name: "Silver Futures", exchange: "CME", price: 72.25, updated: 1_779_343_200 });
+      if (url.includes("query1.finance.yahoo.com")) {
+        return jsonResponse({
+          quoteResponse: {
+            result: [
+              { symbol: "GC=F", regularMarketPrice: 4601.5, regularMarketChangePercent: 0.25, regularMarketTime: 1_779_343_200 },
+              { symbol: "SI=F", regularMarketPrice: 72.25, regularMarketChangePercent: -0.15, regularMarketTime: 1_779_343_200 }
+            ]
+          }
+        });
       }
 
       return jsonResponse({
@@ -57,39 +46,32 @@ describe("marketData", () => {
     }));
 
     const payload = await fetchMarketQuotes();
-    const apiNinjasUrls = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls
+    const yahooUrls = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls
       .map(([input]) => input.toString())
-      .filter((url: string) => url.includes("api.api-ninjas.com"));
-    const apiNinjasRequests = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls
-      .filter(([input]) => input.toString().includes("api.api-ninjas.com"));
+      .filter((url: string) => url.includes("query1.finance.yahoo.com"));
 
     expect(payload.source).toBe("mixed");
     expect(payload.isMock).toBe(false);
-    expect(payload.sources).toEqual({ comex: "api-ninjas", etf: "twelvedata" });
+    expect(payload.sources).toEqual({ comex: "yahoo-finance", etf: "twelvedata" });
     expect(payload.warning).toBeUndefined();
     expect(payload.quotes.GC?.price).toBe(4601.5);
     expect(payload.quotes.SI?.price).toBe(72.25);
     expect(payload.items?.comexGold.price).toBe(4601.5);
     expect(payload.items?.AGQ.price).toBe(145.26);
-    expect(apiNinjasUrls).toHaveLength(2);
-    expect(apiNinjasUrls.some((url: string) => new URL(url).searchParams.get("name") === "gold")).toBe(true);
-    expect(apiNinjasUrls.some((url: string) => new URL(url).searchParams.get("name") === "silver")).toBe(true);
-    expect(apiNinjasUrls.some((url: string) => new URL(url).searchParams.get("name") === "GC")).toBe(false);
-    expect(apiNinjasUrls.some((url: string) => new URL(url).searchParams.get("name") === "SI")).toBe(false);
-    expect(apiNinjasRequests.every(([, init]) => init?.headers?.["X-Api-Key"] === "test-comex-key")).toBe(true);
+    expect(yahooUrls).toHaveLength(1);
+    expect(new URL(yahooUrls[0]).searchParams.get("symbols")).toBe("GC=F,SI=F");
   });
 
-  it("includes API-Ninjas error body when COMEX futures source fails", async () => {
-    process.env.COMMODITY_DATA_API_KEY = "test-comex-key";
+  it("falls back to mock when Yahoo Finance futures source fails", async () => {
     process.env.MARKET_DATA_API_KEY = "test-etf-key";
 
     vi.stubGlobal("fetch", vi.fn(async (input: URL | RequestInfo) => {
       const url = input.toString();
-      if (url.includes("api.api-ninjas.com")) {
+      if (url.includes("query1.finance.yahoo.com")) {
         return {
           ok: false,
           status: 400,
-          text: async () => "{\"error\":\"Invalid commodity name\"}",
+          text: async () => "{\"finance\":{\"error\":\"bad request\"}}",
           json: async () => ({})
         };
       }
@@ -100,25 +82,26 @@ describe("marketData", () => {
 
     expect(payload.source).toBe("mock");
     expect(payload.isMock).toBe(true);
-    expect(payload.warning).toContain("COMEX futures 源请求失败");
+    expect(payload.warning).toContain("COMEX futures 延迟行情源请求失败");
     expect(payload.warning).toContain("HTTP 400");
-    expect(payload.warning).toContain("Invalid commodity name");
-    expect(payload.warning).not.toContain("test-comex-key");
+    expect(payload.warning).toContain("bad request");
   });
 
   it("falls back to mock when any ETF quote is missing", async () => {
-    process.env.COMMODITY_DATA_API_KEY = "test-comex-key";
     process.env.MARKET_DATA_API_KEY = "test-etf-key";
 
     vi.stubGlobal("fetch", vi.fn(async (input: URL | RequestInfo) => {
       const url = input.toString();
 
-      if (url.includes("api.api-ninjas.com") && url.includes("name=gold")) {
-        return jsonResponse({ name: "Gold Futures", exchange: "CME", price: 4601.5, updated: 1_779_343_200 });
-      }
-
-      if (url.includes("api.api-ninjas.com") && url.includes("name=silver")) {
-        return jsonResponse({ name: "Silver Futures", exchange: "CME", price: 72.25, updated: 1_779_343_200 });
+      if (url.includes("query1.finance.yahoo.com")) {
+        return jsonResponse({
+          quoteResponse: {
+            result: [
+              { symbol: "GC=F", regularMarketPrice: 4601.5, regularMarketTime: 1_779_343_200 },
+              { symbol: "SI=F", regularMarketPrice: 72.25, regularMarketTime: 1_779_343_200 }
+            ]
+          }
+        });
       }
 
       return jsonResponse({
