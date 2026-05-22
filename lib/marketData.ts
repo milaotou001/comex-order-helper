@@ -73,20 +73,33 @@ export async function fetchMarketQuotes(): Promise<QuotePayload> {
     };
 
     const missingQuotes = getMissingQuotes(quotes);
-    if (missingQuotes.length > 0) {
-      return mockPayload(`真实行情缺少有效价格：${missingQuotes.join(", ")}，回退 mock 行情`);
+    const missingCore = missingQuotes.filter((s) => s === "GC" || s === "SI");
+    if (missingCore.length > 0) {
+      return mockPayload(`COMEX 行情缺失：${missingCore.join(", ")}，回退 mock`);
+    }
+
+    const warning = missingQuotes.length > 0
+      ? `部分 ETF 行情缺失：${missingQuotes.join(", ")}`
+      : undefined;
+
+    let items: QuoteItems | undefined;
+    try {
+      items = buildItems(quotes);
+    } catch {
+      // items is optional; omit if any quote missing
     }
 
     return {
       quotes,
-      items: buildItems(quotes),
+      items,
       updatedAt: comexQuotes.GC?.updatedAt ?? new Date().toISOString(),
       source: "mixed",
       sources: {
         comex: "sina",
         etf: "twelvedata"
       },
-      isMock: false
+      isMock: false,
+      warning
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : "真实行情请求异常";
