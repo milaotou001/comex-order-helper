@@ -122,19 +122,19 @@ async function fetchSinaComexQuotes(): Promise<QuoteMap> {
   const quotes: QuoteMap = {};
 
   for (const [quoteSymbol, sinaSymbol] of Object.entries(SINA_COMEX_SYMBOLS) as Array<[QuoteSymbol, string]>) {
-    const price = parseSinaQuoteLine(text, sinaSymbol);
+    const result = parseSinaQuoteLine(text, sinaSymbol);
     quotes[quoteSymbol] = {
       symbol: quoteSymbol,
       name: NAMES[quoteSymbol],
-      price,
-      updatedAt: new Date().toISOString()
+      price: result.price,
+      updatedAt: result.updatedAt
     };
   }
 
   return quotes;
 }
 
-function parseSinaQuoteLine(text: string, sinaSymbol: string): number {
+function parseSinaQuoteLine(text: string, sinaSymbol: string): { price: number; updatedAt: string } {
   const pattern = new RegExp(`hq_str_${escapeRegExp(sinaSymbol)}="([^"]*)"`);
   const match = text.match(pattern);
   if (!match) {
@@ -147,7 +147,11 @@ function parseSinaQuoteLine(text: string, sinaSymbol: string): number {
     throw new Error(`新浪财经 ${sinaSymbol} 价格无效：${fields[0]}`);
   }
 
-  return price;
+  const date = fields[12];
+  const time = fields[6];
+  const updatedAt = date && time ? `${date}T${time}+08:00` : new Date().toISOString();
+
+  return { price, updatedAt };
 }
 
 async function fetchStooqComexQuotes(): Promise<QuoteMap> {
