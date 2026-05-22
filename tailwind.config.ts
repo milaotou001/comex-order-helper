@@ -8,13 +8,14 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        ink: "#111318",
-        panel: "#181b22",
-        line: "#2b303a",
-        gold: "#d6ad55",
-        silver: "#d4d8dd",
-        amber: "#f2b84b",
-        danger: "#ef6461"
+        page: "#fafaf7",
+        ink: "#1a1a18",
+        panel: "#ffffff",
+        line: "#e8e3da",
+        gold: "#b8943e",
+        silver: "#8a8a85",
+        amber: "#c27830",
+        danger: "#c04040"
       },
       fontFamily: {
         sans: ["Aptos", "Segoe UI", "sans-serif"],

@@ -19,12 +19,12 @@ export function ResultCard({ order, settings, accent, selected = false, onCopy =
   const leveragedPriceFormatted = formatPrice(order.leveragedPrice, settings.decimals);
 
   const riskClass =
-    order.riskLevel === "danger"
-      ? "border-danger bg-danger/10 text-red-100"
-      : order.riskLevel === "warning"
-        ? "border-amber bg-amber/10 text-[#f7d99b]"
-        : selected
-          ? "border-gold bg-gold/10 text-silver"
+    selected
+      ? "border-gold bg-gold/10 text-silver"
+      : order.riskLevel === "danger"
+        ? "border-danger bg-danger/10 text-danger"
+        : order.riskLevel === "warning"
+          ? "border-amber bg-amber/10 text-amber"
           : "border-line bg-panel text-silver";
   const copiedClass = copied ? "border-gold bg-gold/15" : "";
 
@@ -46,11 +46,11 @@ export function ResultCard({ order, settings, accent, selected = false, onCopy =
           <p className={accent === "gold" ? "text-xs font-semibold text-gold" : "text-xs font-semibold text-silver/90"}>
             {order.metal === "gold" ? "COMEX黄金" : "COMEX白银"}
           </p>
-          <p className="mt-1 truncate font-mono text-[2rem] font-semibold leading-none text-white">{order.point}</p>
+          <p className="mt-1 truncate font-mono text-[2rem] font-semibold leading-none text-ink">{order.point}</p>
         </div>
         <span className="pb-1 text-xl text-silver">→</span>
         <div className="min-w-0 text-right">
-          <p className="text-xs font-semibold text-white">{order.plainSymbol}挂单</p>
+          <p className="text-xs font-semibold text-ink">{order.plainSymbol}挂单</p>
           <p className="mt-1 truncate font-mono text-[2rem] font-semibold leading-none text-gold">
             {plainPriceFormatted}
           </p>
@@ -63,17 +63,17 @@ export function ResultCard({ order, settings, accent, selected = false, onCopy =
 
       <div className="mt-3 grid gap-2">
         {settings.showLeveraged ? (
-          <div className="flex min-h-11 items-center rounded-md border border-line bg-ink/60 px-3">
+          <div className="flex min-h-11 items-center rounded-md border border-line bg-page/60 px-3">
             <span className="text-sm text-silver">{order.leveragedSymbol}参考 {leveragedPriceFormatted}</span>
           </div>
         ) : null}
       </div>
 
       {order.riskLevel === "warning" ? (
-        <p className="mt-3 text-sm text-[#f7d99b]">杠杆 ETF 参考误差可能放大</p>
+        <p className="mt-3 text-sm text-amber">杠杆 ETF 参考误差可能放大</p>
       ) : null}
       {order.riskLevel === "danger" ? (
-        <p className="mt-3 text-sm text-red-100">距离当前价格较远，杠杆 ETF 仅供粗略参考</p>
+        <p className="mt-3 text-sm text-danger">距离当前价格较远，杠杆 ETF 仅供粗略参考</p>
       ) : null}
     </article>
   );

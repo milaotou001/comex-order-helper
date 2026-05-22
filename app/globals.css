@@ -3,8 +3,8 @@
 @tailwind utilities;
 
 :root {
-  color-scheme: dark;
-  background: #111318;
+  color-scheme: light;
+  background: #fafaf7;
 }
 
 * {
@@ -13,17 +13,16 @@
 
 html {
   min-height: 100%;
-  background: #111318;
+  background: #fafaf7;
 }
 
 body {
   min-height: 100%;
   margin: 0;
   background:
-    linear-gradient(120deg, rgba(214, 173, 85, 0.1), transparent 28rem),
-    linear-gradient(210deg, rgba(212, 216, 221, 0.08), transparent 22rem),
-    #111318;
-  color: #f4f0e8;
+    linear-gradient(180deg, rgba(184, 148, 62, 0.06), transparent 16rem),
+    #fafaf7;
+  color: #1a1a18;
   font-family: Aptos, "Segoe UI", sans-serif;
 }
 
@@ -34,6 +33,6 @@ input {
 
 button:focus-visible,
 input:focus-visible {
-  outline: 2px solid #d6ad55;
+  outline: 2px solid #b8943e;
   outline-offset: 2px;
 }

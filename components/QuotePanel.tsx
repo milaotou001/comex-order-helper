@@ -21,13 +21,13 @@ export function QuotePanel({ quotes, updatedAt, error, loading, onRefresh, isMoc
     <section className="py-4">
       <div className="mb-3 flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <h2 className="text-lg font-semibold text-white">当前行情</h2>
+          <h2 className="text-lg font-semibold text-ink">当前行情</h2>
         </div>
         <button
           type="button"
           onClick={onRefresh}
           disabled={loading}
-          className="h-10 rounded-md border border-gold/50 bg-gold px-4 text-sm font-semibold text-ink transition hover:bg-[#e2bd68] disabled:cursor-wait disabled:opacity-60"
+          className="h-10 rounded-md border border-gold/50 bg-gold px-4 text-sm font-semibold text-white transition hover:bg-[#a37e2e] disabled:cursor-wait disabled:opacity-60"
         >
           {loading ? "刷新中" : "刷新"}
         </button>
@@ -47,7 +47,7 @@ export function QuotePanel({ quotes, updatedAt, error, loading, onRefresh, isMoc
               <p className={`text-xs ${isComex ? "text-gold" : "text-silver"}`}>
                 {quote?.name ?? symbol}
               </p>
-              <p className={`mt-1 font-mono text-lg ${isComex ? "text-white" : "text-silver"}`}>
+              <p className={`mt-1 font-mono text-lg ${isComex ? "text-ink font-semibold" : "text-silver"}`}>
                 {quote ? formatPrice(quote.price, 2) : "--"}
               </p>
             </div>

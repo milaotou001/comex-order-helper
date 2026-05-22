@@ -30,10 +30,10 @@ export function CopyButton({ value, label = "复制", compact = false, primary =
   const baseClasses = "inline-flex min-h-9 items-center justify-center rounded-md border px-3 text-sm transition";
 
   const variantClasses = primary
-    ? "border-gold/60 bg-gold/15 text-white hover:border-gold hover:bg-gold/25 font-semibold"
+    ? "border-gold/60 bg-gold/15 text-ink hover:border-gold hover:bg-gold/25 font-semibold"
     : subtle
       ? "border-line/50 bg-transparent text-silver/60 hover:border-line hover:text-silver"
-      : "border-line bg-ink/70 text-silver hover:border-gold hover:text-white";
+      : "border-line bg-page text-silver hover:border-gold hover:text-ink";
 
   const compactClasses = compact ? "min-w-9 px-2" : "";
 

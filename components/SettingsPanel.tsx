@@ -19,7 +19,7 @@ export function SettingsPanel({ settings, onChange }: SettingsPanelProps) {
         className="flex w-full items-center justify-between gap-3 rounded-md border border-line bg-panel px-4 py-3 text-left"
       >
         <div>
-          <h2 className="text-lg font-semibold text-white">设置</h2>
+          <h2 className="text-lg font-semibold text-ink">设置</h2>
           <p className="mt-1 text-xs text-silver">
             挂单上浮 +{settings.easyPercent.toFixed(2)}% ｜ 小数 {settings.decimals} ｜ 杠杆 {settings.showLeveraged ? "开" : "关"}
           </p>
@@ -85,7 +85,7 @@ function NumberSetting({ label, value, min, max, step, onChange }: NumberSetting
         max={max}
         step={step}
         onChange={(event) => onChange(Number(event.target.value))}
-        className="h-11 w-full rounded-md border border-line bg-ink px-3 font-mono text-white"
+        className="h-11 w-full rounded-md border border-line bg-page px-3 font-mono text-ink"
       />
     </label>
   );

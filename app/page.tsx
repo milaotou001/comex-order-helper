@@ -78,7 +78,7 @@ export default function Home() {
     <main className="mx-auto min-h-screen w-full max-w-5xl px-4 pb-28 pt-5 sm:px-6 lg:px-8">
       <header className="border-b border-line pb-5">
         <p className="text-xs font-semibold uppercase tracking-[0.22em] text-gold">COMEX ETF</p>
-        <h1 className="mt-2 text-3xl font-semibold text-white sm:text-4xl">COMEX金银点位换算器</h1>
+        <h1 className="mt-2 text-3xl font-semibold text-ink sm:text-4xl">COMEX金银点位换算器</h1>
         <p className="mt-3 max-w-2xl text-sm leading-6 text-silver">
           输入 COMEX 黄金或白银点位，自动换算 IAU、UGL、SLV、AGQ 挂单参考价。
         </p>
@@ -140,7 +140,7 @@ export default function Home() {
 
 function MetalTabs({ activeMetal, onChange }: { activeMetal: Metal; onChange: (metal: Metal) => void }) {
   return (
-    <section className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-ink/95 px-4 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3 backdrop-blur">
+    <section className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-page/95 px-4 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3 backdrop-blur">
       <div className="mx-auto w-full max-w-5xl">
         <p className="mb-2 text-center text-xs text-silver">点击卡片复制挂单价</p>
         <div className="grid grid-cols-2 gap-2 rounded-md border border-line bg-panel p-1">
@@ -150,7 +150,7 @@ function MetalTabs({ activeMetal, onChange }: { activeMetal: Metal; onChange: (m
           className={`min-h-12 rounded-md border px-3 text-sm font-semibold transition ${
             activeMetal === "gold"
               ? "border-gold bg-gold text-ink"
-              : "border-transparent bg-transparent text-silver hover:border-gold/50 hover:text-white"
+              : "border-transparent bg-transparent text-silver hover:border-gold/50 hover:text-ink"
           }`}
         >
           黄金 IAU / UGL
@@ -161,7 +161,7 @@ function MetalTabs({ activeMetal, onChange }: { activeMetal: Metal; onChange: (m
           className={`min-h-12 rounded-md border px-3 text-sm font-semibold transition ${
             activeMetal === "silver"
               ? "border-gold bg-gold text-ink"
-              : "border-transparent bg-transparent text-silver hover:border-gold/50 hover:text-white"
+              : "border-transparent bg-transparent text-silver hover:border-gold/50 hover:text-ink"
           }`}
         >
           白银 SLV / AGQ

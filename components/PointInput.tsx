@@ -22,12 +22,12 @@ export function PointInput({ metal, points, recognizedCount, ignoredCount, onPoi
   return (
     <section className="border-t border-line py-6">
       <div className="mb-4 flex items-start justify-between gap-3">
-        <h2 className="text-xl font-semibold text-white">{label}</h2>
+        <h2 className="text-xl font-semibold text-ink">{label}</h2>
         {points ? (
           <button
             type="button"
             onClick={onClear}
-            className="min-h-9 rounded-md border border-line bg-panel px-3 text-sm text-silver transition hover:border-gold hover:text-white"
+            className="min-h-9 rounded-md border border-line bg-panel px-3 text-sm text-silver transition hover:border-gold hover:text-ink"
           >
             清空
           </button>
@@ -40,11 +40,11 @@ export function PointInput({ metal, points, recognizedCount, ignoredCount, onPoi
         onChange={(event) => onPointsChange(event.target.value)}
         placeholder={placeholder}
         rows={3}
-        className="w-full rounded-md border border-line bg-panel px-4 py-3 font-mono text-lg text-white placeholder:text-silver/35 focus:border-gold focus:outline-none"
+        className="w-full rounded-md border border-line bg-panel px-4 py-3 font-mono text-lg text-ink placeholder:text-silver/50 focus:border-gold focus:outline-none"
       />
 
       <div className="mt-2 flex flex-wrap gap-2 text-xs">
-        <span className="rounded-md border border-line bg-ink/60 px-2 py-1 text-silver">
+        <span className="rounded-md border border-line bg-page/60 px-2 py-1 text-silver">
           已识别 {recognizedCount} 个点位
         </span>
         {ignoredCount > 0 ? (
