@@ -2,12 +2,37 @@
 
 > 日常开发状态文件。每任务简短更新。阶段交接信息见 CURRENT.md（如存在）。
 
-当前任务：MVP-1c Stooq HTML 价格解析容错修复完成，等待真实接口复验
+当前任务：iPhone 自用版界面与交互优化完成，等待手机端验收
 当前执行者：Codex
 最近提交：feat: use stooq delayed comex quotes
 下一步：
-1. 配置 MARKET_DATA_API_KEY 后重新调用 /api/quotes
+1. 在 iPhone 上验收底部复制条、短结果卡、粘贴点位解析
 2. 阶段结束前进行一次技术复核
+iPhone 自用版界面优化记录（2026-05-22）：
+- 主流程简化为 IAU / SLV 单挂单价，挂单价沿用标准价上浮逻辑
+- 结果卡改为短卡，UGL / AGQ 仅作为参考价和次级复制入口
+- 增加底部固定复制条，点击结果卡可切换当前复制对象
+- 输入区支持换行、空格、逗号、顿号分隔，并显示识别/忽略数量
+- 设置区默认折叠，保留挂单上浮、小数位、刷新间隔、杠杆开关
+- 行情区压缩为手机端紧凑状态条
+验证记录（2026-05-22 iPhone 界面优化）：
+- npm test: 3 files, 16 tests, all passed
+- npm run build: 3 routes compiled
+- git diff --check: passed
+MVP-1c 页面联调验收记录（2026-05-22）：
+- 首页已成功显示真实行情
+- 页面不再显示 mock 行情
+- COMEX 黄金、COMEX 白银来自 Stooq
+- IAU、UGL、SLV、AGQ 来自 Twelve Data
+- 黄金点位输入后能正常换算 IAU / UGL
+- 白银点位输入后能正常换算 SLV / AGQ
+- 复制按钮仍然只复制一个最终挂单价格
+- 未发现 GLD
+- 未发现 XAU/USD、XAG/USD 口径切换
+验证记录（2026-05-22 MVP-1c 页面验收记录）：
+- npm test: 3 files, 16 tests, all passed
+- npm run build: 3 routes compiled
+- git diff --check: passed
 MVP-1c 修复记录（2026-05-22）：
 - Stooq HTML 解析改为定位 Gold (GC.F) / Silver (SI.F) 后按合理价格区间提取数值
 - 支持真实片段格式：Gold (GC.F) 22 maj , 14:15 4531.07 -11.43 (-0.25%)

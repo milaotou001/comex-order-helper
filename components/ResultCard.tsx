@@ -1,65 +1,72 @@
 "use client";
 
-import { buildCopyLine, formatPercent, formatPrice, getSelectedPlainPrice } from "@/lib/format";
+import { useState } from "react";
+import { formatPercent, formatPrice, getMainOrderPrice } from "@/lib/format";
 import type { ConvertedOrder, OrderSettings } from "@/lib/types";
-import { CopyButton } from "./CopyButton";
 
 type ResultCardProps = {
   order: ConvertedOrder;
   settings: OrderSettings;
   accent: "gold" | "silver";
+  selected?: boolean;
+  onCopy?: () => void;
 };
 
-export function ResultCard({ order, settings, accent }: ResultCardProps) {
-  const fullLine = buildCopyLine(order, settings.decimals);
-
-  const plainPrice = getSelectedPlainPrice(order, settings.copyPriceType);
+export function ResultCard({ order, settings, accent, selected = false, onCopy = () => undefined }: ResultCardProps) {
+  const [copied, setCopied] = useState(false);
+  const plainPrice = getMainOrderPrice(order);
   const plainPriceFormatted = formatPrice(plainPrice, settings.decimals);
   const leveragedPriceFormatted = formatPrice(order.leveragedPrice, settings.decimals);
-
-  const metalLabel = order.metal === "gold" ? "COMEX黄金" : "COMEX白银";
 
   const riskClass =
     order.riskLevel === "danger"
       ? "border-danger bg-danger/10 text-red-100"
       : order.riskLevel === "warning"
         ? "border-amber bg-amber/10 text-[#f7d99b]"
-        : "border-line bg-panel text-silver";
+        : selected
+          ? "border-gold bg-gold/10 text-silver"
+          : "border-line bg-panel text-silver";
+  const copiedClass = copied ? "border-gold bg-gold/15" : "";
+
+  async function handleCardCopy() {
+    await copyText(plainPriceFormatted);
+    setCopied(true);
+    onCopy();
+    window.setTimeout(() => setCopied(false), 1200);
+  }
 
   return (
-    <article className={`rounded-md border ${riskClass} p-4 shadow-glow`}>
-      <div className="mb-4 flex items-start justify-between gap-3">
-        <div>
-          <p className={accent === "gold" ? "text-xs font-semibold text-gold" : "text-xs font-semibold text-silver"}>
-            {metalLabel}
+    <article
+      onClick={handleCardCopy}
+      aria-label={`复制 ${order.plainSymbol} 挂单价 ${plainPriceFormatted}`}
+      className={`cursor-pointer rounded-md border ${riskClass} ${copiedClass} p-4 shadow-glow transition active:scale-[0.99] active:border-gold active:bg-gold/15 hover:border-gold/70`}
+    >
+      <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-3">
+        <div className="min-w-0">
+          <p className={accent === "gold" ? "text-xs font-semibold text-gold" : "text-xs font-semibold text-silver/90"}>
+            {order.metal === "gold" ? "COMEX黄金" : "COMEX白银"}
           </p>
-          <h3 className="mt-1 font-mono text-2xl text-white">{order.point}</h3>
-          <p className="mt-1 text-sm text-silver">距当前 {formatPercent(order.distancePercent)}</p>
+          <p className="mt-1 truncate font-mono text-[2rem] font-semibold leading-none text-white">{order.point}</p>
+        </div>
+        <span className="pb-1 text-xl text-silver">→</span>
+        <div className="min-w-0 text-right">
+          <p className="text-xs font-semibold text-white">{order.plainSymbol}挂单</p>
+          <p className="mt-1 truncate font-mono text-[2rem] font-semibold leading-none text-gold">
+            {plainPriceFormatted}
+          </p>
         </div>
       </div>
 
-      <div className="grid gap-2">
-        <PriceRow label={`${order.plainSymbol} 标准挂单价`} value={order.standardPrice} decimals={settings.decimals} />
-        <PriceRow label={`${order.plainSymbol} 容易成交价`} value={order.easyPrice} decimals={settings.decimals} />
-        <PriceRow label={`${order.plainSymbol} 捡漏价`} value={order.bargainPrice} decimals={settings.decimals} />
-        {settings.showLeveraged ? (
-          <PriceRow label={`${order.leveragedSymbol} 参考价`} value={order.leveragedPrice} decimals={settings.decimals} />
-        ) : null}
+      <div className="mt-4 flex flex-wrap gap-x-2 gap-y-1 text-sm text-silver">
+        <span>距当前 {formatPercent(order.distancePercent)}</span>
       </div>
 
-      <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-line pt-4">
-        <CopyButton
-          value={plainPriceFormatted}
-          label={`复制 ${order.plainSymbol}：${plainPriceFormatted}`}
-          primary
-        />
+      <div className="mt-3 grid gap-2">
         {settings.showLeveraged ? (
-          <CopyButton
-            value={leveragedPriceFormatted}
-            label={`复制 ${order.leveragedSymbol}：${leveragedPriceFormatted}`}
-          />
+          <div className="flex min-h-11 items-center rounded-md border border-line bg-ink/60 px-3">
+            <span className="text-sm text-silver">{order.leveragedSymbol}参考 {leveragedPriceFormatted}</span>
+          </div>
         ) : null}
-        <CopyButton value={fullLine} label="复制整行" subtle />
       </div>
 
       {order.riskLevel === "warning" ? (
@@ -72,19 +79,25 @@ export function ResultCard({ order, settings, accent }: ResultCardProps) {
   );
 }
 
-type PriceRowProps = {
-  label: string;
-  value: number;
-  decimals: number;
-};
+async function copyText(value: string) {
+  try {
+    if (navigator.clipboard) {
+      await navigator.clipboard.writeText(value);
+    } else {
+      fallbackCopy(value);
+    }
+  } catch {
+    fallbackCopy(value);
+  }
+}
 
-function PriceRow({ label, value, decimals }: PriceRowProps) {
-  const formatted = formatPrice(value, decimals);
-
-  return (
-    <div className="flex min-h-11 items-center justify-between gap-3 rounded-md border border-line bg-ink/60 px-3">
-      <span className="text-sm text-silver">{label}</span>
-      <span className="font-mono text-white">{formatted}</span>
-    </div>
-  );
+function fallbackCopy(value: string) {
+  const textarea = document.createElement("textarea");
+  textarea.value = value;
+  textarea.style.position = "fixed";
+  textarea.style.opacity = "0";
+  document.body.appendChild(textarea);
+  textarea.select();
+  document.execCommand("copy");
+  document.body.removeChild(textarea);
 }

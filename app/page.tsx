@@ -4,11 +4,14 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { PointInput } from "@/components/PointInput";
 import { QuotePanel } from "@/components/QuotePanel";
 import { ResultCard } from "@/components/ResultCard";
-import { RiskNotice } from "@/components/RiskNotice";
-import { SettingsPanel } from "@/components/SettingsPanel";
 import { buildConvertedOrder } from "@/lib/formulas";
 import { DEFAULT_SETTINGS } from "@/lib/settings";
-import type { ConvertedOrder, OrderSettings, QuoteMap, QuotePayload } from "@/lib/types";
+import type { ConvertedOrder, Metal, OrderSettings, QuoteMap, QuotePayload } from "@/lib/types";
+
+type ParsedPoints = {
+  points: number[];
+  ignoredCount: number;
+};
 
 export default function Home() {
   const [quotes, setQuotes] = useState<QuoteMap>({});
@@ -16,9 +19,11 @@ export default function Home() {
   const [quoteError, setQuoteError] = useState<string | undefined>();
   const [loading, setLoading] = useState(false);
   const [source, setSource] = useState<QuotePayload["source"]>("mock");
-  const [settings, setSettings] = useState<OrderSettings>(DEFAULT_SETTINGS);
+  const [settings] = useState<OrderSettings>(DEFAULT_SETTINGS);
   const [goldPoints, setGoldPoints] = useState("");
   const [silverPoints, setSilverPoints] = useState("");
+  const [activeMetal, setActiveMetal] = useState<Metal>("gold");
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
 
   const refreshQuotes = useCallback(async () => {
     setLoading(true);
@@ -52,11 +57,25 @@ export default function Home() {
     return () => window.clearInterval(timer);
   }, [refreshQuotes, settings.refreshIntervalMinutes]);
 
-  const goldOrders = usePointOrders("gold", goldPoints, quotes, settings);
-  const silverOrders = usePointOrders("silver", silverPoints, quotes, settings);
+  const goldParsed = useMemo(() => parsePointInput(goldPoints), [goldPoints]);
+  const silverParsed = useMemo(() => parsePointInput(silverPoints), [silverPoints]);
+  const goldOrders = usePointOrders("gold", goldParsed.points, quotes, settings);
+  const silverOrders = usePointOrders("silver", silverParsed.points, quotes, settings);
+  const activeOrders = activeMetal === "gold" ? goldOrders : silverOrders;
+
+  useEffect(() => {
+    if (activeOrders.length === 0) {
+      setSelectedKey(null);
+      return;
+    }
+
+    if (!selectedKey || !activeOrders.some((order) => getOrderKey(order) === selectedKey)) {
+      setSelectedKey(getOrderKey(activeOrders[0]));
+    }
+  }, [activeOrders, selectedKey]);
 
   return (
-    <main className="mx-auto min-h-screen w-full max-w-5xl px-4 py-5 sm:px-6 lg:px-8">
+    <main className="mx-auto min-h-screen w-full max-w-5xl px-4 pb-28 pt-5 sm:px-6 lg:px-8">
       <header className="border-b border-line pb-5">
         <p className="text-xs font-semibold uppercase tracking-[0.22em] text-gold">COMEX ETF</p>
         <h1 className="mt-2 text-3xl font-semibold text-white sm:text-4xl">COMEX金银点位换算器</h1>
@@ -74,40 +93,96 @@ export default function Home() {
         isMock={source === "mock"}
       />
 
-      <PointInput metal="gold" points={goldPoints} onPointsChange={setGoldPoints} />
-      <ResultList orders={goldOrders} settings={settings} metal="gold" />
+      {activeMetal === "gold" ? (
+        <>
+          <PointInput
+            metal="gold"
+            points={goldPoints}
+            recognizedCount={goldParsed.points.length}
+            ignoredCount={goldParsed.ignoredCount}
+            onPointsChange={setGoldPoints}
+            onClear={() => setGoldPoints("")}
+          />
+          <ResultList
+            orders={goldOrders}
+            settings={settings}
+            metal="gold"
+            selectedKey={selectedKey}
+            onSelect={setSelectedKey}
+          />
+        </>
+      ) : null}
 
-      <PointInput metal="silver" points={silverPoints} onPointsChange={setSilverPoints} />
-      <ResultList orders={silverOrders} settings={settings} metal="silver" />
+      {activeMetal === "silver" ? (
+        <>
+          <PointInput
+            metal="silver"
+            points={silverPoints}
+            recognizedCount={silverParsed.points.length}
+            ignoredCount={silverParsed.ignoredCount}
+            onPointsChange={setSilverPoints}
+            onClear={() => setSilverPoints("")}
+          />
+          <ResultList
+            orders={silverOrders}
+            settings={settings}
+            metal="silver"
+            selectedKey={selectedKey}
+            onSelect={setSelectedKey}
+          />
+        </>
+      ) : null}
 
-      <SettingsPanel settings={settings} onChange={setSettings} />
-      <RiskNotice />
+      <MetalTabs activeMetal={activeMetal} onChange={setActiveMetal} />
     </main>
   );
 }
 
+function MetalTabs({ activeMetal, onChange }: { activeMetal: Metal; onChange: (metal: Metal) => void }) {
+  return (
+    <section className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-ink/95 px-4 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3 backdrop-blur">
+      <div className="mx-auto w-full max-w-5xl">
+        <p className="mb-2 text-center text-xs text-silver">点击卡片复制挂单价</p>
+        <div className="grid grid-cols-2 gap-2 rounded-md border border-line bg-panel p-1">
+        <button
+          type="button"
+          onClick={() => onChange("gold")}
+          className={`min-h-12 rounded-md border px-3 text-sm font-semibold transition ${
+            activeMetal === "gold"
+              ? "border-gold bg-gold text-ink"
+              : "border-transparent bg-transparent text-silver hover:border-gold/50 hover:text-white"
+          }`}
+        >
+          黄金 IAU / UGL
+        </button>
+        <button
+          type="button"
+          onClick={() => onChange("silver")}
+          className={`min-h-12 rounded-md border px-3 text-sm font-semibold transition ${
+            activeMetal === "silver"
+              ? "border-gold bg-gold text-ink"
+              : "border-transparent bg-transparent text-silver hover:border-gold/50 hover:text-white"
+          }`}
+        >
+          白银 SLV / AGQ
+        </button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function usePointOrders(
-  metal: "gold" | "silver",
-  points: string,
+  metal: Metal,
+  points: number[],
   quotes: QuoteMap,
   settings: OrderSettings
 ) {
   return useMemo(() => {
-    const lines = points.split("\n");
     const orders: ConvertedOrder[] = [];
 
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (!trimmed) {
-        continue;
-      }
-
-      const number = Number(trimmed);
-      if (!Number.isFinite(number) || number <= 0) {
-        continue;
-      }
-
-      const order = buildConvertedOrder(metal, number, quotes, settings.easyPercent, settings.bargainPercent);
+    for (const point of points) {
+      const order = buildConvertedOrder(metal, point, quotes, settings.easyPercent, settings.bargainPercent);
       if (order) {
         orders.push(order);
       }
@@ -120,11 +195,15 @@ function usePointOrders(
 function ResultList({
   orders,
   settings,
-  metal
+  metal,
+  selectedKey,
+  onSelect
 }: {
   orders: ConvertedOrder[];
   settings: OrderSettings;
-  metal: "gold" | "silver";
+  metal: Metal;
+  selectedKey: string | null;
+  onSelect: (key: string) => void;
 }) {
   if (orders.length === 0) {
     return (
@@ -142,8 +221,34 @@ function ResultList({
           order={order}
           settings={settings}
           accent={metal}
+          selected={getOrderKey(order) === selectedKey}
+          onCopy={() => onSelect(getOrderKey(order))}
         />
       ))}
     </div>
   );
+}
+
+function parsePointInput(value: string): ParsedPoints {
+  const normalized = value
+    .replace(/[，,、；;|]/g, " ")
+    .replace(/\r?\n/g, " ");
+  const tokens = normalized.split(/\s+/).filter(Boolean);
+  const points: number[] = [];
+  let ignoredCount = 0;
+
+  for (const token of tokens) {
+    const number = Number(token);
+    if (Number.isFinite(number) && number > 0) {
+      points.push(number);
+    } else {
+      ignoredCount += 1;
+    }
+  }
+
+  return { points, ignoredCount };
+}
+
+function getOrderKey(order: ConvertedOrder): string {
+  return `${order.metal}-${order.point}`;
 }
