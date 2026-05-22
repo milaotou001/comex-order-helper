@@ -2,12 +2,10 @@
 
 > 日常开发状态文件。每任务简短更新。阶段交接信息见 CURRENT.md（如存在）。
 
-当前任务：iPhone 自用版界面与交互优化完成，等待手机端验收
-当前执行者：Codex
-最近提交：feat: use stooq delayed comex quotes
-下一步：
-1. 在 iPhone 上验收底部复制条、短结果卡、粘贴点位解析
-2. 阶段结束前进行一次技术复核
+当前任务：待定（iPhone 界面优化阶段已完成）
+当前执行者：Claude
+最近提交：c0594ff chore: remove mock badge from quote panel and increase fetch timeout to 30s
+下一步：视用户需求确定下一阶段任务
 iPhone 自用版界面优化记录（2026-05-22）：
 - 主流程简化为 IAU / SLV 单挂单价，挂单价沿用标准价上浮逻辑
 - 结果卡改为短卡，UGL / AGQ 仅作为参考价和次级复制入口
@@ -19,6 +17,21 @@ iPhone 自用版界面优化记录（2026-05-22）：
 - npm test: 3 files, 16 tests, all passed
 - npm run build: 3 routes compiled
 - git diff --check: passed
+iPhone 自用版界面优化完成记录（2026-05-22 Claude）：
+- 卡片布局优化：左侧 COMEX 点位，右侧 IAU/SLV 挂单价
+- 移除三档价格切换，只保留 easy 挂单价
+- 行情面板改为 2×3 网格卡片布局
+- 设置面板默认折叠
+- 点位输入增加识别/忽略计数标签，增加清空按钮
+- 删除 COMEX 标签、分隔提示等冗余文字
+- 删除 mock 行情 badge
+- 输入框改为 text 键盘模式（修复 iOS 数字键盘无回车问题）
+- GC.F / SI.F 改为并行请求，超时放宽到 30 秒
+- 手机端验收通过
+验证记录（2026-05-22 iPhone 界面优化完成）：
+- npm test: 3 files, 16 tests, all passed
+- npm run build: 3 routes compiled
+- git status: clean
 MVP-1c 页面联调验收记录（2026-05-22）：
 - 首页已成功显示真实行情
 - 页面不再显示 mock 行情
