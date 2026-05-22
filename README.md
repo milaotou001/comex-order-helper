@@ -24,12 +24,12 @@ AGQ_SYMBOL=AGQ
 
 `/api/quotes` 在服务端聚合两类行情：
 
-- COMEX 黄金、COMEX 白银：Yahoo Finance 延迟期货行情，固定使用 `GC=F`、`SI=F`。
+- COMEX 黄金、COMEX 白银：Stooq 延迟商品期货行情，固定使用 `GC.F`、`SI.F`。
 - IAU、UGL、SLV、AGQ：Twelve Data `/quote`。
 
 不要把 `COMEX_GOLD_SYMBOL` 填成 `XAU/USD`，也不要把 `COMEX_SILVER_SYMBOL` 填成 `XAG/USD`。本项目不做现货金银口径切换。
 
-Yahoo Finance 的 `GC=F`、`SI=F` 是延迟期货行情，不是实时交易数据。本工具用于挂单价格换算参考，不适合实时交易或高频交易；最终下单前请以 IBKR 实时盘口为准。
+Stooq 的 `GC.F`、`SI.F` 页面标注为 Cmdt Fut，属于延迟商品期货行情，不是实时交易数据。本工具用于挂单价格换算参考，不适合实时交易或高频交易；最终下单前请以 IBKR 实时盘口为准。
 
 ## Twelve Data ETF symbol 查询
 
@@ -60,9 +60,9 @@ npm run symbols:twelvedata -- iau ugl slv agq
 - `source: "mixed"` 且 `isMock: false`：使用真实聚合行情。
 - `source: "mock"` 且 `isMock: true`：使用 mock 行情。
 - `warning`：fallback 到 mock 时返回原因，前端展示后页面继续可用。
-- `sources.comex: "yahoo-finance"`、`sources.etf: "twelvedata"`：真实行情成功时标明聚合来源。
+- `sources.comex: "stooq"`、`sources.etf: "twelvedata"`：真实行情成功时标明聚合来源。
 
-未配置 Twelve Data API Key、Yahoo Finance COMEX futures 延迟行情源失败、Twelve Data ETF 源失败、返回数据缺少任一目标品种有效价格时，都会整套回退 mock 行情。
+未配置 Twelve Data API Key、Stooq COMEX futures 延迟行情源失败、Twelve Data ETF 源失败、返回数据缺少任一目标品种有效价格时，都会整套回退 mock 行情。
 
 ## 测试
 

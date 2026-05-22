@@ -12,11 +12,11 @@ const DEFAULT_ETF_SYMBOLS: Record<(typeof ETF_SYMBOLS)[number], string> = {
 const COMEX_FUTURES = [
   {
     quoteSymbol: "GC",
-    yahooSymbol: "GC=F"
+    stooqSymbol: "GC.F"
   },
   {
     quoteSymbol: "SI",
-    yahooSymbol: "SI=F"
+    stooqSymbol: "SI.F"
   }
 ] as const;
 
@@ -37,17 +37,11 @@ type TwelveDataQuote = {
   datetime?: string;
 };
 
-type YahooFinanceQuote = {
-  symbol?: string;
-  regularMarketPrice?: number;
-  regularMarketChangePercent?: number;
-  regularMarketTime?: number;
-};
-
-type YahooFinanceResponse = {
-  quoteResponse?: {
-    result?: YahooFinanceQuote[];
-  };
+type StooqQuote = {
+  stooqSymbol: string;
+  quoteSymbol: QuoteSymbol;
+  price: number;
+  updatedAt: string;
 };
 
 const MOCK_QUOTES: QuoteMap = {
@@ -82,7 +76,7 @@ export async function fetchMarketQuotes(): Promise<QuotePayload> {
       updatedAt: new Date().toISOString(),
       source: "mixed",
       sources: {
-        comex: "yahoo-finance",
+        comex: "stooq",
         etf: "twelvedata"
       },
       isMock: false
@@ -94,8 +88,9 @@ export async function fetchMarketQuotes(): Promise<QuotePayload> {
 }
 
 async function fetchComexFuturesQuotes(): Promise<QuoteMap> {
-  const endpoint = new URL("https://query1.finance.yahoo.com/v7/finance/quote");
-  endpoint.searchParams.set("symbols", COMEX_FUTURES.map((item) => item.yahooSymbol).join(","));
+  const endpoint = new URL("https://stooq.pl/q/l/");
+  endpoint.searchParams.set("s", COMEX_FUTURES.map((item) => item.stooqSymbol).join(" "));
+  endpoint.searchParams.set("e", "xml");
 
   const response = await fetch(endpoint, {
     next: { revalidate: 0 }
@@ -103,32 +98,26 @@ async function fetchComexFuturesQuotes(): Promise<QuoteMap> {
 
   if (!response.ok) {
     const body = await readResponseBody(response);
-    const detail = body ? `，Yahoo Finance 返回：${body}` : "";
-    throw new Error(`COMEX futures 延迟行情源请求失败：HTTP ${response.status}${detail}`);
+    const detail = body ? `，Stooq 返回：${body}` : "";
+    throw new Error(`COMEX futures 延迟行情源请求失败：Stooq HTTP ${response.status}${detail}`);
   }
 
-  const raw = await response.json() as YahooFinanceResponse;
-  const rows = raw.quoteResponse?.result ?? [];
+  const xml = await response.text();
+  const stooqQuotes = parseStooqQuoteXml(xml);
   const quotes: QuoteMap = {};
 
   for (const contract of COMEX_FUTURES) {
-    const row = rows.find((item) => item.symbol === contract.yahooSymbol);
-    const price = Number(row?.regularMarketPrice);
-    if (!row || !Number.isFinite(price) || price <= 0) {
-      throw new Error(`COMEX futures 延迟行情价格无效：${contract.yahooSymbol}/${contract.quoteSymbol}`);
+    const row = stooqQuotes.find((item) => item.stooqSymbol.toUpperCase() === contract.stooqSymbol.toUpperCase());
+    if (!row) {
+      throw new Error(`COMEX futures 延迟行情价格无效：${contract.stooqSymbol}/${contract.quoteSymbol}`);
     }
 
     const quote: Quote = {
       symbol: contract.quoteSymbol,
       name: NAMES[contract.quoteSymbol],
-      price,
-      updatedAt: formatYahooUpdatedAt(row.regularMarketTime)
+      price: row.price,
+      updatedAt: row.updatedAt
     };
-
-    const changePercent = Number(row.regularMarketChangePercent);
-    if (Number.isFinite(changePercent)) {
-      quote.changePercent = changePercent;
-    }
 
     quotes[contract.quoteSymbol] = quote;
   }
@@ -278,10 +267,55 @@ function requireQuote(quotes: QuoteMap, symbol: QuoteSymbol): Quote {
   return quote;
 }
 
-function formatYahooUpdatedAt(value: YahooFinanceQuote["regularMarketTime"]): string {
-  if (typeof value === "number" && Number.isFinite(value)) {
-    return new Date(value * 1000).toISOString();
+export function parseStooqQuoteXml(xml: string): StooqQuote[] {
+  const quotes: StooqQuote[] = [];
+  const blocks = xml.matchAll(/<(?:symbol|quote)>\s*([\s\S]*?)\s*<\/(?:symbol|quote)>/gi);
+
+  for (const block of blocks) {
+    const body = block[1];
+    const stooqSymbol = readXmlTag(body, "id") ?? readXmlTag(body, "symbol");
+    const close = readXmlTag(body, "close");
+    const date = readXmlTag(body, "date");
+    const time = readXmlTag(body, "time");
+    const price = close === null ? Number.NaN : Number(close);
+
+    if (!stooqSymbol || !Number.isFinite(price) || price <= 0) {
+      continue;
+    }
+
+    const contract = COMEX_FUTURES.find((item) => item.stooqSymbol.toUpperCase() === stooqSymbol.toUpperCase());
+    if (!contract) {
+      continue;
+    }
+
+    quotes.push({
+      stooqSymbol,
+      quoteSymbol: contract.quoteSymbol,
+      price,
+      updatedAt: formatStooqUpdatedAt(date, time)
+    });
   }
 
-  return new Date().toISOString();
+  return quotes;
+}
+
+function readXmlTag(body: string, tag: string): string | null {
+  const match = body.match(new RegExp(`<${tag}>\\s*([^<]+?)\\s*<\\/${tag}>`, "i"));
+  return match?.[1]?.trim() ?? null;
+}
+
+function formatStooqUpdatedAt(date: string | null, time: string | null): string {
+  if (!date || !/^\d{8}$/.test(date)) {
+    return new Date().toISOString();
+  }
+
+  const normalizedTime = time && /^\d{6}$/.test(time) ? time : "000000";
+  const year = date.slice(0, 4);
+  const month = date.slice(4, 6);
+  const day = date.slice(6, 8);
+  const hour = normalizedTime.slice(0, 2);
+  const minute = normalizedTime.slice(2, 4);
+  const second = normalizedTime.slice(4, 6);
+
+  return `${year}-${month}-${day}T${hour}:${minute}:${second}+01:00`;
 }
