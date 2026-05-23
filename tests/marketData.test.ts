@@ -9,15 +9,24 @@ describe("marketData", () => {
     process.env = { ...ORIGINAL_ENV };
   });
 
-  it("returns mock payload when ETF API key is not configured", async () => {
+  it("returns mixed payload with ETF warning when ETF API key is not configured", async () => {
     delete process.env.MARKET_DATA_API_KEY;
+
+    vi.stubGlobal("fetch", vi.fn(async (input: URL | RequestInfo) => {
+      const url = input.toString();
+      if (url.includes("hq.sinajs.cn")) {
+        return textResponse(sinaResponse(4601.5, 72.25));
+      }
+      return jsonResponse({});
+    }));
 
     const payload = await fetchMarketQuotes();
 
-    expect(payload.source).toBe("mock");
-    expect(payload.isMock).toBe(true);
-    expect(payload.warning).toContain("MARKET_DATA_API_KEY");
-    expect(payload.items?.IAU.price).toBeGreaterThan(0);
+    expect(payload.source).toBe("mixed");
+    expect(payload.isMock).toBe(false);
+    expect(payload.sources).toEqual({ comex: "sina", etf: "twelvedata" });
+    expect(payload.warning).toContain("部分 ETF 行情缺失");
+    expect(payload.items).toBeUndefined();
   });
 
   it("parses GC.F price from Stooq quote page HTML", () => {
@@ -61,17 +70,14 @@ describe("marketData", () => {
     expect(quote.price).toBe(76.045);
   });
 
-  it("returns mixed payload when Stooq futures and Twelve Data ETFs both succeed", async () => {
+  it("returns mixed payload when Sina futures and Twelve Data ETFs both succeed", async () => {
     process.env.MARKET_DATA_API_KEY = "test-etf-key";
 
     vi.stubGlobal("fetch", vi.fn(async (input: URL | RequestInfo) => {
       const url = input.toString();
 
-      if (url.includes("stooq.com")) {
-        const stooqSymbol = new URL(url).searchParams.get("s");
-        return textResponse(stooqSymbol === "gc.f"
-          ? "<html><body><h1>Gold (GC.F)</h1><div>22 maj , 14:15 4601.50 -1.0 (-0.02%)</div></body></html>"
-          : "<html><body><h1>Silver (SI.F)</h1><div>22 maj , 14:15 7225.000 -5.0 (-0.07%)</div></body></html>");
+      if (url.includes("hq.sinajs.cn")) {
+        return textResponse(sinaResponse(4601.5, 72.25));
       }
 
       return jsonResponse({
@@ -83,29 +89,37 @@ describe("marketData", () => {
     }));
 
     const payload = await fetchMarketQuotes();
-    const stooqUrls = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls
+    const urls = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls
       .map(([input]) => input.toString())
-      .filter((url: string) => url.includes("stooq.com"));
+      .filter((url: string) => url.includes("hq.sinajs.cn"));
 
     expect(payload.source).toBe("mixed");
     expect(payload.isMock).toBe(false);
-    expect(payload.sources).toEqual({ comex: "stooq", etf: "twelvedata" });
+    expect(payload.sources).toEqual({ comex: "sina", etf: "twelvedata" });
     expect(payload.warning).toBeUndefined();
     expect(payload.quotes.GC?.price).toBe(4601.5);
     expect(payload.quotes.SI?.price).toBe(72.25);
     expect(payload.items?.comexGold.price).toBe(4601.5);
     expect(payload.items?.AGQ.price).toBe(145.26);
-    expect(stooqUrls).toHaveLength(2);
-    expect(stooqUrls.some((url: string) => new URL(url).searchParams.get("s") === "gc.f")).toBe(true);
-    expect(stooqUrls.some((url: string) => new URL(url).searchParams.get("s") === "si.f")).toBe(true);
-    expect(stooqUrls.some((url: string) => url.includes("XAU") || url.includes("XAG"))).toBe(false);
+    expect(urls).toHaveLength(1);
+    expect(urls[0]).toContain("hf_GC");
+    expect(urls[0]).toContain("hf_SI");
+    expect(urls.some((url: string) => url.includes("XAU") || url.includes("XAG"))).toBe(false);
   });
 
-  it("falls back to mock when Stooq futures source fails", async () => {
+  it("falls back to mock when Sina and Stooq futures sources fail", async () => {
     process.env.MARKET_DATA_API_KEY = "test-etf-key";
 
     vi.stubGlobal("fetch", vi.fn(async (input: URL | RequestInfo) => {
       const url = input.toString();
+      if (url.includes("hq.sinajs.cn")) {
+        return {
+          ok: false,
+          status: 500,
+          text: async () => "",
+          json: async () => ({})
+        };
+      }
       if (url.includes("stooq.com")) {
         return {
           ok: false,
@@ -121,44 +135,26 @@ describe("marketData", () => {
 
     expect(payload.source).toBe("mock");
     expect(payload.isMock).toBe(true);
-    expect(payload.warning).toContain("COMEX futures 延迟行情源请求失败");
-    expect(payload.warning).toContain("HTTP 400");
-    expect(payload.warning).toContain("bad request");
+    expect(payload.warning).toContain("新浪财经行情请求失败");
+    expect(payload.warning).toContain("HTTP 500");
   });
 
-  it("falls back to mock with Stooq parse diagnostic context", async () => {
+  it("throws Stooq parse diagnostic context when fallback HTML has no price", () => {
+    expect(() => parseStooqQuoteHtml(
+      "<html><body><h1>Gold (GC.F)</h1><div>no price here</div></body></html>",
+      "GC.F",
+      "GC"
+    )).toThrow(/Stooq 页面解析失败.*GC\.F\/GC.*no price here/);
+  });
+
+  it("uses cached ETF quotes when the latest ETF response is partial", async () => {
     process.env.MARKET_DATA_API_KEY = "test-etf-key";
 
     vi.stubGlobal("fetch", vi.fn(async (input: URL | RequestInfo) => {
       const url = input.toString();
 
-      if (url.includes("stooq.com")) {
-        return textResponse("<html><body><h1>Gold (GC.F)</h1><div>no price here</div></body></html>");
-      }
-
-      return jsonResponse({});
-    }));
-
-    const payload = await fetchMarketQuotes();
-
-    expect(payload.source).toBe("mock");
-    expect(payload.isMock).toBe(true);
-    expect(payload.warning).toContain("Stooq 页面解析失败");
-    expect(payload.warning).toContain("GC.F/GC");
-    expect(payload.warning).toContain("no price here");
-  });
-
-  it("falls back to mock when any ETF quote is missing", async () => {
-    process.env.MARKET_DATA_API_KEY = "test-etf-key";
-
-    vi.stubGlobal("fetch", vi.fn(async (input: URL | RequestInfo) => {
-      const url = input.toString();
-
-      if (url.includes("stooq.com")) {
-        const stooqSymbol = new URL(url).searchParams.get("s");
-        return textResponse(stooqSymbol === "gc.f"
-          ? "<html><body><h1>Gold (GC.F)</h1><div>22 maj , 14:15 4601.50 -1.0 (-0.02%)</div></body></html>"
-          : "<html><body><h1>Silver (SI.F)</h1><div>22 maj , 14:15 7225.000 -5.0 (-0.07%)</div></body></html>");
+      if (url.includes("hq.sinajs.cn")) {
+        return textResponse(sinaResponse(4601.5, 72.25));
       }
 
       return jsonResponse({
@@ -168,9 +164,11 @@ describe("marketData", () => {
 
     const payload = await fetchMarketQuotes();
 
-    expect(payload.source).toBe("mock");
-    expect(payload.isMock).toBe(true);
-    expect(payload.warning).toContain("真实行情缺少有效价格");
+    expect(payload.source).toBe("mixed");
+    expect(payload.isMock).toBe(false);
+    expect(payload.warning).toBeUndefined();
+    expect(payload.items?.IAU.price).toBe(86.55);
+    expect(payload.items?.AGQ.price).toBe(145.26);
   });
 });
 
@@ -188,4 +186,11 @@ function textResponse(data: string) {
     status: 200,
     text: async () => data
   };
+}
+
+function sinaResponse(gcPrice: number, siPrice: number): string {
+  return [
+    `var hq_str_hf_GC="${gcPrice},,,,,,14:15,,,,,,2026-05-23";`,
+    `var hq_str_hf_SI="${siPrice},,,,,,14:15,,,,,,2026-05-23";`
+  ].join("\n");
 }

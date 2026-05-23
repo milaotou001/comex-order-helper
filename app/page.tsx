@@ -14,6 +14,8 @@ type ParsedPoints = {
   ignoredCount: number;
 };
 
+type ThemeMode = "light" | "dark";
+
 export default function Home() {
   const [quotes, setQuotes] = useState<QuoteMap>({});
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
@@ -25,6 +27,7 @@ export default function Home() {
   const [silverPoints, setSilverPoints] = useState("");
   const [activeMetal, setActiveMetal] = useState<Metal>("gold");
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const [theme, setTheme] = useState<ThemeMode>("light");
 
   const refreshQuotes = useCallback(async () => {
     setLoading(true);
@@ -45,6 +48,18 @@ export default function Home() {
   useEffect(() => {
     void refreshQuotes();
   }, [refreshQuotes]);
+
+  useEffect(() => {
+    const savedTheme = window.localStorage.getItem("comex-theme");
+    if (savedTheme === "dark" || savedTheme === "light") {
+      setTheme(savedTheme);
+    }
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    window.localStorage.setItem("comex-theme", theme);
+  }, [theme]);
 
   useEffect(() => {
     if (settings.refreshIntervalMinutes <= 0) {
@@ -79,11 +94,16 @@ export default function Home() {
   return (
     <main className="mx-auto min-h-screen w-full max-w-5xl px-4 pb-28 pt-5 sm:px-6 lg:px-8">
       <header className="border-b border-line pb-5">
-        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-gold">COMEX ETF</p>
-        <h1 className="mt-2 text-3xl font-semibold text-ink sm:text-4xl">COMEX金银点位换算器</h1>
-        <p className="mt-3 max-w-2xl text-sm leading-6 text-silver">
-          输入 COMEX 黄金或白银点位，自动换算 IAU、UGL、SLV、AGQ 挂单参考价。
-        </p>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-gold">COMEX ETF</p>
+            <h1 className="mt-2 text-3xl font-semibold text-ink sm:text-4xl">COMEX金银点位换算器</h1>
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-silver">
+              输入 COMEX 黄金或白银点位，自动换算 IAU、UGL、SLV、AGQ 挂单参考价。
+            </p>
+          </div>
+          <ThemeToggle theme={theme} onChange={setTheme} />
+        </div>
       </header>
 
       <QuotePanel
@@ -137,6 +157,33 @@ export default function Home() {
 
       <MetalTabs activeMetal={activeMetal} onChange={setActiveMetal} />
     </main>
+  );
+}
+
+function ThemeToggle({ theme, onChange }: { theme: ThemeMode; onChange: (theme: ThemeMode) => void }) {
+  return (
+    <div className="grid shrink-0 grid-cols-2 gap-1 rounded-md border border-line bg-panel p-1">
+      <button
+        type="button"
+        aria-pressed={theme === "light"}
+        onClick={() => onChange("light")}
+        className={`min-h-9 rounded-md px-3 text-xs font-semibold transition ${
+          theme === "light" ? "bg-gold text-ink" : "text-silver hover:text-ink"
+        }`}
+      >
+        白
+      </button>
+      <button
+        type="button"
+        aria-pressed={theme === "dark"}
+        onClick={() => onChange("dark")}
+        className={`min-h-9 rounded-md px-3 text-xs font-semibold transition ${
+          theme === "dark" ? "bg-gold text-ink" : "text-silver hover:text-ink"
+        }`}
+      >
+        黑
+      </button>
+    </div>
   );
 }
 

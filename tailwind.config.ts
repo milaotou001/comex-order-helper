@@ -8,21 +8,21 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        page: "#fafaf7",
-        ink: "#1a1a18",
-        panel: "#ffffff",
-        line: "#e8e3da",
-        gold: "#b8943e",
-        silver: "#8a8a85",
-        amber: "#c27830",
-        danger: "#c04040"
+        page: "rgb(var(--color-page) / <alpha-value>)",
+        ink: "rgb(var(--color-ink) / <alpha-value>)",
+        panel: "rgb(var(--color-panel) / <alpha-value>)",
+        line: "rgb(var(--color-line) / <alpha-value>)",
+        gold: "rgb(var(--color-gold) / <alpha-value>)",
+        silver: "rgb(var(--color-silver) / <alpha-value>)",
+        amber: "rgb(var(--color-amber) / <alpha-value>)",
+        danger: "rgb(var(--color-danger) / <alpha-value>)"
       },
       fontFamily: {
         sans: ["Aptos", "Segoe UI", "sans-serif"],
         mono: ["Cascadia Mono", "SFMono-Regular", "monospace"]
       },
       boxShadow: {
-        glow: "0 18px 60px rgba(0, 0, 0, 0.36)"
+        glow: "var(--shadow-glow)"
       }
     }
   },
