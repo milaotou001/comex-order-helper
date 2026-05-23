@@ -1,0 +1,29 @@
+name: Deploy to Aliyun
+
+on:
+  push:
+    branches:
+      - {{BRANCH}}
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-aliyun-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.ALIYUN_HOST }}
+          username: ${{ secrets.ALIYUN_USER }}
+          port: ${{ secrets.ALIYUN_PORT }}
+          key: ${{ secrets.ALIYUN_SSH_KEY }}
+          script_stop: true
+          command_timeout: 30m
+          script: |
+            cd {{PROJECT_PATH}} && bash deploy.sh

@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+PROJECT_NAME="{{PROJECT_NAME}}"
+PROJECT_PATH="{{PROJECT_PATH}}"
+BRANCH="{{BRANCH}}"
+PM2_NAME="{{PM2_NAME}}"
+
+echo "Deploying ${PROJECT_NAME} from ${BRANCH}"
+cd "${PROJECT_PATH}"
+git pull origin "${BRANCH}"
+npm install
+npm run build
+pm2 restart "${PM2_NAME}"
+pm2 save
