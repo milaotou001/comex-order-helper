@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { PointInput } from "@/components/PointInput";
-import { QuotePanel } from "@/components/QuotePanel";
 import { ResultCard } from "@/components/ResultCard";
 import { buildConvertedOrder } from "@/lib/formulas";
 import { MOCK_QUOTES } from "@/lib/marketData";
@@ -106,8 +105,7 @@ export default function Home() {
         </div>
       </header>
 
-      <QuotePanel
-        quotes={quotes}
+      <MarketStatus
         updatedAt={updatedAt}
         error={quoteError}
         loading={loading}
@@ -184,6 +182,47 @@ function ThemeToggle({ theme, onChange }: { theme: ThemeMode; onChange: (theme: 
         黑
       </button>
     </div>
+  );
+}
+
+function MarketStatus({
+  updatedAt,
+  error,
+  loading,
+  onRefresh,
+  isMock
+}: {
+  updatedAt: string | null;
+  error?: string;
+  loading: boolean;
+  onRefresh: () => void;
+  isMock: boolean;
+}) {
+  const updatedLabel = updatedAt ? formatUpdatedDistance(updatedAt) : "暂无";
+
+  return (
+    <section className="py-4">
+      <div className="rounded-md border border-line bg-panel px-4 py-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-gold">行情状态</p>
+            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+              <span className={isMock ? "text-amber" : "text-gold"}>{isMock ? "mock" : "真实"}</span>
+              <span className="text-silver">更新 {updatedLabel}</span>
+              {error ? <span className="text-amber">{error}</span> : null}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onRefresh}
+            disabled={loading}
+            className="h-10 shrink-0 rounded-md border border-gold/50 bg-gold px-4 text-sm font-semibold text-white transition hover:bg-[#a37e2e] disabled:cursor-wait disabled:opacity-60"
+          >
+            {loading ? "刷新中..." : "刷新"}
+          </button>
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -298,4 +337,23 @@ function parsePointInput(value: string): ParsedPoints {
 
 function getOrderKey(order: ConvertedOrder): string {
   return `${order.metal}-${order.point}`;
+}
+
+function formatUpdatedDistance(updatedAt: string): string {
+  const timestamp = new Date(updatedAt).getTime();
+  if (!Number.isFinite(timestamp)) {
+    return "暂无";
+  }
+
+  const seconds = Math.max(0, Math.floor((Date.now() - timestamp) / 1000));
+  if (seconds < 60) {
+    return `${seconds}秒前`;
+  }
+
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) {
+    return `${minutes}分钟前`;
+  }
+
+  return new Date(updatedAt).toLocaleString("zh-CN");
 }
