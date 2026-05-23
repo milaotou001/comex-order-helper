@@ -110,9 +110,9 @@ MVP-0 手动验收记录（2026-05-20）：
 - UGL/AGQ 只复制参考价，复制整行为弱按钮
 - 确认无 GLD、无 XAU/USD/XAG/USD 口径切换
 - 首屏行情卡已移除，只保留行情状态条和换算卡片
-- 自动刷新间隔已改为 2 分钟，COMEX 更快更新，保留 4 个 ETF 自动更新
+- 自动刷新间隔已改为 10 分钟，更保守地更新 COMEX / ETF，减轻服务器压力
 - /api/quotes 已加共享缓存头，200 人共用同一份边缘缓存
-- 阿里云单机共享缓存架构已补齐：服务端合并请求，COMEX 2 分钟、ETF 10 分钟、mock 60 秒
+- 阿里云单机共享缓存架构已补齐：服务端合并请求，COMEX 10 分钟、ETF 10 分钟、mock 60 秒
 验证记录（2026-05-20 第一轮）：
 - npm install: 166 packages, 0 errors
 - npm test: 2 files, 9 tests, all passed
