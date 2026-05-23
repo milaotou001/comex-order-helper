@@ -9,7 +9,7 @@ const DEFAULT_ETF_SYMBOLS: Record<(typeof ETF_SYMBOLS)[number], string> = {
   AGQ: "AGQ"
 };
 
-const ETF_CACHE_TTL_MS = 5 * 60 * 1000;
+const ETF_CACHE_TTL_MS = 10 * 60 * 1000;
 let etfCache: { quotes: QuoteMap; timestamp: number } | null = null;
 
 const COMEX_FUTURES = [

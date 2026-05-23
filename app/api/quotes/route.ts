@@ -11,7 +11,7 @@ export async function GET() {
 }
 
 function getCacheHeaders(isMock: boolean): HeadersInit {
-  const ttlSeconds = isMock ? 60 : 600;
+  const ttlSeconds = isMock ? 60 : 120;
   const swrSeconds = isMock ? 30 : 120;
 
   return {

@@ -3,7 +3,7 @@ import type { OrderSettings } from "./types";
 export const DEFAULT_SETTINGS: OrderSettings = {
   easyPercent: 0.1,
   bargainPercent: 0.3,
-  refreshIntervalMinutes: 10,
+  refreshIntervalMinutes: 2,
   showLeveraged: true,
   decimals: 2
 };

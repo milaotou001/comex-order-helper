@@ -4,7 +4,7 @@ import path from "node:path";
 import { fetchMarketQuotes } from "./marketData";
 import type { QuotePayload } from "./types";
 
-const REAL_TTL_MS = 10 * 60 * 1000;
+const REAL_TTL_MS = 2 * 60 * 1000;
 const MOCK_TTL_MS = 60 * 1000;
 const STALE_GRACE_MS = 60 * 60 * 1000;
 const CACHE_FILE = path.join(os.tmpdir(), "comex-order-helper", "quotes-cache.json");
