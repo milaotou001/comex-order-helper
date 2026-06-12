@@ -21,7 +21,7 @@ export function SettingsPanel({ settings, onChange }: SettingsPanelProps) {
         <div>
           <h2 className="text-lg font-semibold text-ink">设置</h2>
           <p className="mt-1 text-xs text-silver">
-            挂单上浮 +{settings.easyPercent.toFixed(2)}% ｜ 小数 {settings.decimals} ｜ 杠杆 {settings.showLeveraged ? "开" : "关"}
+            挂单上浮 +{settings.easyPercent.toFixed(2)}% ｜ 小数 {settings.decimals}
           </p>
         </div>
         <span className="text-sm text-gold">{open ? "收起" : "展开"}</span>
@@ -52,15 +52,6 @@ export function SettingsPanel({ settings, onChange }: SettingsPanelProps) {
         />
       </div> : null}
 
-      {open ? <label className="mt-4 flex items-center justify-between rounded-md border border-line bg-panel px-3 py-3 text-sm text-silver">
-        <span>显示 UGL / AGQ</span>
-        <input
-          type="checkbox"
-          checked={settings.showLeveraged}
-          onChange={(event) => onChange({ ...settings, showLeveraged: event.target.checked })}
-          className="h-5 w-5 accent-gold"
-        />
-      </label> : null}
     </section>
   );
 }

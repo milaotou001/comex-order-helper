@@ -39,7 +39,6 @@ export type OrderSettings = {
   easyPercent: number;
   bargainPercent: number;
   refreshIntervalMinutes: number;
-  showLeveraged: boolean;
   decimals: number;
 };
 

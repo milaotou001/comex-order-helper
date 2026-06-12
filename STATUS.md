@@ -121,6 +121,7 @@ MVP-0 手动验收记录（2026-05-20）：
 - 添加 mock 行情兜底、输入区改为多行 COMEX 点位、结果卡改为点位→ETF 换算
 - npm test: 2 files, 8 tests, all passed / npm run build: 3 routes compiled
 - 阿里云 Next.js 自动部署模板包已新增：deploy.sh / GitHub Actions / 首次初始化脚本 / 部署基线 / 端口登记
+- UGL / AGQ leveraged reference rows now render unconditionally again
 验证记录（2026-05-20 第三轮 fix）：
 - 复制按钮改为单价格复制（标准/容易成交/捡漏价可切换）
 - 设置面板加醒目"当前复制价格类型"选择器

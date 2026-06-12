@@ -62,11 +62,9 @@ export function ResultCard({ order, settings, accent, selected = false, onCopy =
       </div>
 
       <div className="mt-3 grid gap-2">
-        {settings.showLeveraged ? (
-          <div className="flex min-h-11 items-center rounded-md border border-line bg-page/60 px-3">
-            <span className="text-sm text-silver">{order.leveragedSymbol}参考 {leveragedPriceFormatted}</span>
-          </div>
-        ) : null}
+        <div className="flex min-h-11 items-center rounded-md border border-line bg-page/60 px-3">
+          <span className="text-sm text-silver">{order.leveragedSymbol}参考 {leveragedPriceFormatted}</span>
+        </div>
       </div>
 
       {order.riskLevel === "warning" ? (
